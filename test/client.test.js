@@ -138,4 +138,57 @@ describe('CollectorClient', () => {
       expect(c.baseUrl).toBe('http://localhost:9848');
     });
   });
+
+  describe('service key', () => {
+    it('stores service key from opts', () => {
+      const c = new CollectorClient('http://localhost:9848', { serviceKey: 'my-secret' });
+      expect(c.serviceKey).toBe('my-secret');
+    });
+
+    it('defaults service key to empty string', () => {
+      const c = new CollectorClient('http://localhost:9848');
+      expect(c.serviceKey).toBe('');
+    });
+
+    it('sends X-Service-Key header on GET when configured', async () => {
+      const c = new CollectorClient('http://127.0.0.1:9848', { serviceKey: 'secret123', retries: 0, timeout: 5000 });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ tools: [], count: 0 })
+      });
+
+      await c.listTools('quox');
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers).toBeDefined();
+      expect(callArgs[1].headers['X-Service-Key']).toBe('secret123');
+    });
+
+    it('sends X-Service-Key header on POST when configured', async () => {
+      const c = new CollectorClient('http://127.0.0.1:9848', { serviceKey: 'key456', retries: 0, timeout: 5000 });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true })
+      });
+
+      await c.executeTool('fleet_status', {}, 'quox', 'session-1');
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers['X-Service-Key']).toBe('key456');
+      expect(callArgs[1].headers['Content-Type']).toBe('application/json');
+    });
+
+    it('does not send X-Service-Key when not configured', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ tools: [], count: 0 })
+      });
+
+      await client.listTools('quox');
+
+      const callArgs = mockFetch.mock.calls[0];
+      const headers = callArgs[1].headers || {};
+      expect(headers['X-Service-Key']).toBeUndefined();
+    });
+  });
 });

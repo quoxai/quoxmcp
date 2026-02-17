@@ -25,6 +25,7 @@ const { registerPrompts } = require('./lib/prompt-adapter');
 const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const sessionId = process.env.QUOX_SESSION_ID || '';
 const collectorUrl = process.env.QUOX_COLLECTOR_URL || 'http://127.0.0.1:9848';
+const serviceKey = process.env.QUOX_SERVICE_KEY || process.env.INTERNAL_SERVICE_KEY || '';
 
 async function main() {
   // Log to stderr (stdout is reserved for MCP STDIO protocol)
@@ -35,7 +36,7 @@ async function main() {
     version: '1.0.0'
   });
 
-  const client = new CollectorClient(collectorUrl);
+  const client = new CollectorClient(collectorUrl, { serviceKey });
 
   // Fetch available tools for this agent from the collector
   let tools;
