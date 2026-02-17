@@ -127,6 +127,32 @@ describe('CollectorClient', () => {
     });
   });
 
+  describe('exponential backoff', () => {
+    it('uses increasing delays between retries', async () => {
+      const retryClient = new CollectorClient('http://127.0.0.1:9848', { retries: 2, timeout: 5000 });
+      const delays = [];
+      const origSetTimeout = globalThis.setTimeout;
+
+      // Track delays by spying on Promise constructor timing
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        if (callCount <= 3) throw new Error('fail');
+        return { ok: true, json: () => Promise.resolve({}) };
+      });
+
+      const start = Date.now();
+      await expect(retryClient.listTools('quox')).rejects.toThrow('fail');
+      const elapsed = Date.now() - start;
+
+      // With exponential backoff: 1s + 2s = ~3s for 2 retries
+      // With fixed 1s: would be ~2s
+      // Allow some tolerance
+      expect(elapsed).toBeGreaterThan(2500);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('URL handling', () => {
     it('strips trailing slash from baseUrl', () => {
       const c = new CollectorClient('http://localhost:9848/');

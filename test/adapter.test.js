@@ -2,7 +2,7 @@
  * ToolAdapter Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { jsonSchemaToZodShape } from '../lib/tool-adapter.js';
 
 describe('jsonSchemaToZodShape', () => {
@@ -161,6 +161,31 @@ describe('jsonSchemaToZodShape', () => {
     }, []);
     expect(shape).toHaveProperty('data');
   });
+
+  it('uses z.record for objects without properties (no passthrough)', () => {
+    const shape = jsonSchemaToZodShape({
+      metadata: { type: 'object', description: 'Arbitrary metadata' }
+    }, []);
+    expect(shape).toHaveProperty('metadata');
+    // z.record allows arbitrary keys but is not z.object().passthrough()
+    const parsed = shape.metadata.safeParse({ foo: 'bar', num: 42 });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('nested objects do not allow passthrough of unknown properties', () => {
+    const shape = jsonSchemaToZodShape({
+      config: {
+        type: 'object',
+        properties: { host: { type: 'string' } },
+        required: ['host']
+      }
+    }, ['config']);
+    // z.object() (without .passthrough()) strips unknown keys by default
+    const parsed = shape.config.safeParse({ host: 'docker01', extra: 'ignored' });
+    expect(parsed.success).toBe(true);
+    // Zod strips unknown keys by default (not strict, not passthrough)
+    expect(parsed.data).toEqual({ host: 'docker01' });
+  });
 });
 
 describe('registerTools', () => {
@@ -215,5 +240,50 @@ describe('registerTools', () => {
 
     expect(count).toBe(3);
     expect(registered).toEqual(['ssh_exec', 'fleet_status', 'docker_status']);
+  });
+
+  it('tool handler logs success to stderr', async () => {
+    const { registerTools } = await import('../lib/tool-adapter.js');
+
+    let capturedHandler;
+    const mockServer = {
+      tool: (name, desc, shape, handler) => { capturedHandler = handler; }
+    };
+    const mockClient = {
+      executeTool: vi.fn().mockResolvedValue({ success: true, stdout: 'ok' })
+    };
+
+    registerTools(mockServer, [
+      { name: 'test_tool', description: 'Test', input_schema: { properties: {}, required: [] } }
+    ], mockClient, { agentId: 'quox', sessionId: 'sess-1' });
+
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await capturedHandler({});
+    expect(result.content[0].text).toContain('"success":');
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Tool test_tool OK'));
+    stderrSpy.mockRestore();
+  });
+
+  it('tool handler logs failure to stderr', async () => {
+    const { registerTools } = await import('../lib/tool-adapter.js');
+
+    let capturedHandler;
+    const mockServer = {
+      tool: (name, desc, shape, handler) => { capturedHandler = handler; }
+    };
+    const mockClient = {
+      executeTool: vi.fn().mockRejectedValue(new Error('Connection refused'))
+    };
+
+    registerTools(mockServer, [
+      { name: 'fail_tool', description: 'Test', input_schema: { properties: {}, required: [] } }
+    ], mockClient, { agentId: 'quox', sessionId: 'sess-1' });
+
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await capturedHandler({});
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Connection refused');
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Tool fail_tool FAILED'));
+    stderrSpy.mockRestore();
   });
 });

@@ -84,6 +84,14 @@ async function main() {
   console.error(`[QuoxMCP] Connected — serving ${tools.length} tools, ${resCount} resources, ${promptCount} prompts via STDIO`);
 }
 
+// Graceful shutdown
+function shutdown(signal) {
+  console.error(`[QuoxMCP] Received ${signal}, shutting down`);
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 main().catch(err => {
   console.error(`[QuoxMCP] Fatal error: ${err.message}`);
   process.exit(1);

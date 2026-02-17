@@ -2,8 +2,8 @@
  * ResourceAdapter Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { registerResources } from '../lib/resource-adapter.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { registerResources, _resourceCache } from '../lib/resource-adapter.js';
 
 // Helper: create a mock MCP server that captures registrations
 function createMockServer() {
@@ -48,6 +48,10 @@ const SAMPLE_RESOURCES = [
 ];
 
 describe('registerResources', () => {
+  beforeEach(() => {
+    _resourceCache.clear();
+  });
+
   it('registers all valid resources', () => {
     const server = createMockServer();
     const count = registerResources(server, SAMPLE_RESOURCES);
@@ -155,5 +159,51 @@ describe('registerResources', () => {
     ]);
     const result = await server.registered[0].handler('quox://empty');
     expect(result.contents[0].text).toBe('');
+  });
+
+  it('live resource uses cache on second read within TTL', async () => {
+    const server = createMockServer();
+    const mockClient = {
+      listResources: vi.fn().mockResolvedValue({
+        resources: [{ name: 'fleet-topology', content: '{"cached":true}' }]
+      })
+    };
+
+    registerResources(server, [SAMPLE_RESOURCES[2]], mockClient);
+    const handler = server.registered[0].handler;
+
+    // First read: fetches from collector
+    await handler('quox://fleet/topology');
+    expect(mockClient.listResources).toHaveBeenCalledOnce();
+
+    // Second read: served from cache (no additional fetch)
+    const result = await handler('quox://fleet/topology');
+    expect(mockClient.listResources).toHaveBeenCalledOnce(); // still 1
+    expect(result.contents[0].text).toBe('{"cached":true}');
+  });
+
+  it('live resource re-fetches after cache TTL expires', async () => {
+    const server = createMockServer();
+    const mockClient = {
+      listResources: vi.fn()
+        .mockResolvedValueOnce({ resources: [{ name: 'fleet-topology', content: '{"v":1}' }] })
+        .mockResolvedValueOnce({ resources: [{ name: 'fleet-topology', content: '{"v":2}' }] })
+    };
+
+    registerResources(server, [SAMPLE_RESOURCES[2]], mockClient);
+    const handler = server.registered[0].handler;
+
+    // First read
+    await handler('quox://fleet/topology');
+    expect(mockClient.listResources).toHaveBeenCalledTimes(1);
+
+    // Expire cache manually
+    const entry = _resourceCache.get('fleet-topology');
+    entry.ts = Date.now() - 60000; // 60s ago (well past 30s TTL)
+
+    // Second read: fetches fresh
+    const result = await handler('quox://fleet/topology');
+    expect(mockClient.listResources).toHaveBeenCalledTimes(2);
+    expect(result.contents[0].text).toBe('{"v":2}');
   });
 });
