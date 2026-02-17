@@ -1,0 +1,28 @@
+{
+  "name": "@quox/mcp",
+  "version": "1.0.0",
+  "description": "QuoxMCP — AI Infrastructure Engine. MCP server bridging Claude to QuoxCORE infrastructure tools.",
+  "main": "server.js",
+  "bin": {
+    "quoxmcp": "server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AdaminX/quoxmcp.git"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
