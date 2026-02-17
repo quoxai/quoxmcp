@@ -19,6 +19,8 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { CollectorClient } = require('./lib/collector-client');
 const { registerTools } = require('./lib/tool-adapter');
+const { registerResources } = require('./lib/resource-adapter');
+const { registerPrompts } = require('./lib/prompt-adapter');
 
 const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const sessionId = process.env.QUOX_SESSION_ID || '';
@@ -54,11 +56,31 @@ async function main() {
   // Register tools onto the MCP server
   registerTools(server, tools, client, { agentId, sessionId });
 
+  // Fetch and register MCP resources (read-only context)
+  let resCount = 0;
+  try {
+    const resData = await client.listResources();
+    const resources = resData.resources || [];
+    resCount = registerResources(server, resources, client);
+  } catch (err) {
+    console.error(`[QuoxMCP] Resources unavailable: ${err.message}`);
+  }
+
+  // Fetch and register MCP prompts (operational templates)
+  let promptCount = 0;
+  try {
+    const promptData = await client.listPrompts();
+    const prompts = promptData.prompts || [];
+    promptCount = registerPrompts(server, prompts);
+  } catch (err) {
+    console.error(`[QuoxMCP] Prompts unavailable: ${err.message}`);
+  }
+
   // Connect via STDIO transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error(`[QuoxMCP] Connected — serving ${tools.length} tools via STDIO`);
+  console.error(`[QuoxMCP] Connected — serving ${tools.length} tools, ${resCount} resources, ${promptCount} prompts via STDIO`);
 }
 
 main().catch(err => {

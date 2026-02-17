@@ -103,6 +103,64 @@ describe('jsonSchemaToZodShape', () => {
     const shape = jsonSchemaToZodShape({}, []);
     expect(Object.keys(shape)).toHaveLength(0);
   });
+
+  it('converts nested object properties recursively', () => {
+    const shape = jsonSchemaToZodShape({
+      config: {
+        type: 'object',
+        description: 'Configuration',
+        properties: {
+          host: { type: 'string' },
+          port: { type: 'integer' }
+        },
+        required: ['host']
+      }
+    }, ['config']);
+    expect(shape).toHaveProperty('config');
+    // Nested object should have been processed
+    expect(shape.config.isOptional()).toBe(false);
+  });
+
+  it('converts typed string arrays', () => {
+    const shape = jsonSchemaToZodShape({
+      hosts: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Host list'
+      }
+    }, ['hosts']);
+    expect(shape).toHaveProperty('hosts');
+  });
+
+  it('converts typed object arrays', () => {
+    const shape = jsonSchemaToZodShape({
+      rules: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { name: { type: 'string' } },
+          required: ['name']
+        }
+      }
+    }, []);
+    expect(shape).toHaveProperty('rules');
+  });
+
+  it('applies default values', () => {
+    const shape = jsonSchemaToZodShape({
+      timeout: { type: 'number', default: 30 },
+      format: { type: 'string', default: 'json' }
+    }, []);
+    expect(shape).toHaveProperty('timeout');
+    expect(shape).toHaveProperty('format');
+  });
+
+  it('handles array with no items schema', () => {
+    const shape = jsonSchemaToZodShape({
+      data: { type: 'array' }
+    }, []);
+    expect(shape).toHaveProperty('data');
+  });
 });
 
 describe('registerTools', () => {
