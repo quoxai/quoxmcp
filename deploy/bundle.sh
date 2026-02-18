@@ -32,25 +32,25 @@ fi
 
 # Clean staging area
 rm -rf "$BUNDLE_DIR"
-mkdir -p "$BUNDLE_DIR/quoxmcp"
+mkdir -p "$BUNDLE_DIR"
 
 log "Staging files from $PROJECT_ROOT..."
 
 # Copy essential files only (no tests, no dev tooling)
-cp "$PROJECT_ROOT/server.js" "$BUNDLE_DIR/quoxmcp/"
-cp "$PROJECT_ROOT/package.json" "$BUNDLE_DIR/quoxmcp/"
-cp -r "$PROJECT_ROOT/lib" "$BUNDLE_DIR/quoxmcp/"
+cp "$PROJECT_ROOT/server.js" "$BUNDLE_DIR/"
+cp "$PROJECT_ROOT/package.json" "$BUNDLE_DIR/"
+cp -r "$PROJECT_ROOT/lib" "$BUNDLE_DIR/"
 
 # Copy production node_modules (MCP SDK + zod)
-cp -r "$PROJECT_ROOT/node_modules" "$BUNDLE_DIR/quoxmcp/"
+cp -r "$PROJECT_ROOT/node_modules" "$BUNDLE_DIR/"
 
 # Calculate size
-STAGED_SIZE=$(du -sh "$BUNDLE_DIR/quoxmcp" | cut -f1)
+STAGED_SIZE=$(du -sh "$BUNDLE_DIR" | cut -f1)
 log "Staged: $STAGED_SIZE"
 
-# Create tarball
+# Create tarball (flat — extracts directly into target dir)
 log "Creating $BUNDLE_NAME..."
-tar -czf "$SCRIPT_DIR/$BUNDLE_NAME" -C "$BUNDLE_DIR" quoxmcp
+tar -czf "$SCRIPT_DIR/$BUNDLE_NAME" -C "$BUNDLE_DIR" .
 
 # Clean up
 rm -rf "$BUNDLE_DIR"
