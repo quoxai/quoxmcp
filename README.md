@@ -155,12 +155,48 @@ No anonymous tool execution is possible when the collector enforces service key 
 - **Graceful shutdown** — SIGTERM and SIGINT handlers ensure clean MCP server disconnection
 - **Per-tool logging** — Every tool call, resource read, and prompt invocation is logged with timing and agent context
 
+## Remote Deployment
+
+QuoxMCP can be deployed to any fleet host alongside QuoxAgent. The install script handles Node.js provisioning, bundle download, and MCP config generation automatically.
+
+### Build & Deploy
+
+```bash
+# 1. Build the bundle on the control workstation
+cd /home/control/quoxmcp/deploy && ./bundle.sh
+
+# 2. Deploy to fleet hosts (reads service key from dashboard .env)
+cd /home/control/quoxagent/deploy
+./deploy-to-host.sh docker01            # single host
+./deploy-to-host.sh all                 # all fleet hosts
+
+# 3. Verify
+./deploy-to-host.sh all --check-mcp
+```
+
+### Remote File Layout
+
+| Path | Contents |
+|------|----------|
+| `/opt/quoxmcp/server.js` | Entry point |
+| `/opt/quoxmcp/lib/` | Protocol adapters |
+| `/opt/quoxmcp/node_modules/` | Dependencies (MCP SDK, Zod) |
+| `/etc/quoxmcp/mcp-config.json` | MCP config with collector URL + service key (chmod 600) |
+
+### Usage on Remote Hosts
+
+```bash
+# Claude CLI with MCP tools
+claude --mcp-config /etc/quoxmcp/mcp-config.json
+```
+
 ## Project Structure
 
 ```
 quoxmcp/
 ├── server.js                    # MCP server entry point (STDIO transport)
 ├── lib/
+│   ├── validate.js              # Centralised validation (IDs, URLs, sanitizers)
 │   ├── collector-client.js      # HTTP client for collector API (retries + auth)
 │   ├── tool-adapter.js          # JSON Schema → Zod conversion + MCP tool registration
 │   ├── resource-adapter.js      # MCP resource registration + caching
@@ -170,7 +206,10 @@ quoxmcp/
 │   ├── adapter.test.js          # Schema conversion + tool registration tests (22)
 │   ├── client.test.js           # Collector client tests with mocked HTTP
 │   ├── resource-adapter.test.js # Resource adapter tests
-│   └── prompt-adapter.test.js   # Prompt adapter + template tests (23)
+│   ├── prompt-adapter.test.js   # Prompt adapter + template tests (23)
+│   └── security.test.js         # Security hardening tests (40)
+├── deploy/
+│   └── bundle.sh                # Bundle packaging for remote deployment
 ├── package.json
 └── README.md
 ```
@@ -178,7 +217,7 @@ quoxmcp/
 ## Development
 
 ```bash
-# Run all tests (81 tests across 5 files)
+# Run all tests (121 tests across 6 files)
 npm test
 
 # Run tests in watch mode

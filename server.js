@@ -21,11 +21,38 @@ const { CollectorClient } = require('./lib/collector-client');
 const { registerTools } = require('./lib/tool-adapter');
 const { registerResources } = require('./lib/resource-adapter');
 const { registerPrompts } = require('./lib/prompt-adapter');
+const { isValidId, validateUrl, sanitizeError } = require('./lib/validate');
 
 const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const sessionId = process.env.QUOX_SESSION_ID || '';
 const collectorUrl = process.env.QUOX_COLLECTOR_URL || 'http://127.0.0.1:9848';
 const serviceKey = process.env.QUOX_SERVICE_KEY || process.env.INTERNAL_SERVICE_KEY || '';
+
+// --- Startup validation ---
+if (!serviceKey) {
+  console.error('[QuoxMCP] FATAL: No service key configured. Set QUOX_SERVICE_KEY or INTERNAL_SERVICE_KEY.');
+  console.error('[QuoxMCP] Refusing to start without authentication.');
+  process.exit(1);
+}
+
+if (!isValidId(agentId)) {
+  console.error(`[QuoxMCP] FATAL: Invalid QUOX_AGENT_ID: "${agentId}". Must be alphanumeric/dash/underscore, max 64 chars.`);
+  process.exit(1);
+}
+
+if (sessionId && !isValidId(sessionId)) {
+  console.error('[QuoxMCP] FATAL: Invalid QUOX_SESSION_ID. Must be alphanumeric/dash/underscore, max 64 chars.');
+  process.exit(1);
+}
+
+const urlCheck = validateUrl(collectorUrl);
+if (!urlCheck.valid) {
+  console.error(`[QuoxMCP] FATAL: Invalid collector URL. Must be a valid http/https URL.`);
+  process.exit(1);
+}
+if (urlCheck.warning) {
+  console.error(`[QuoxMCP] WARNING: ${urlCheck.warning}`);
+}
 
 async function main() {
   // Log to stderr (stdout is reserved for MCP STDIO protocol)
@@ -45,8 +72,8 @@ async function main() {
     tools = data.tools || [];
     console.error(`[QuoxMCP] Fetched ${tools.length} tools for agent ${agentId}`);
   } catch (err) {
-    console.error(`[QuoxMCP] Failed to fetch tools from collector: ${err.message}`);
-    console.error(`[QuoxMCP] Ensure collector is running at ${collectorUrl}`);
+    console.error(`[QuoxMCP] Failed to fetch tools from collector: ${sanitizeError(err.message)}`);
+    console.error(`[QuoxMCP] Ensure collector is running and reachable.`);
     process.exit(1);
   }
 
@@ -64,7 +91,7 @@ async function main() {
     const resources = resData.resources || [];
     resCount = registerResources(server, resources, client);
   } catch (err) {
-    console.error(`[QuoxMCP] Resources unavailable: ${err.message}`);
+    console.error(`[QuoxMCP] Resources unavailable: ${sanitizeError(err.message)}`);
   }
 
   // Fetch and register MCP prompts (operational templates)
@@ -74,7 +101,7 @@ async function main() {
     const prompts = promptData.prompts || [];
     promptCount = registerPrompts(server, prompts);
   } catch (err) {
-    console.error(`[QuoxMCP] Prompts unavailable: ${err.message}`);
+    console.error(`[QuoxMCP] Prompts unavailable: ${sanitizeError(err.message)}`);
   }
 
   // Connect via STDIO transport
@@ -93,6 +120,6 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 main().catch(err => {
-  console.error(`[QuoxMCP] Fatal error: ${err.message}`);
+  console.error(`[QuoxMCP] Fatal error: ${sanitizeError(err.message)}`);
   process.exit(1);
 });
