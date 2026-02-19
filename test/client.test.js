@@ -97,6 +97,34 @@ describe('CollectorClient', () => {
       const callArgs = mockFetch.mock.calls[0];
       expect(callArgs[1].headers['Content-Type']).toBe('application/json');
     });
+
+    it('includes org_id, user_id, and auth_token when provided', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true })
+      });
+
+      await client.executeTool('create_inbox_item', { title: 'Test' }, 'quox', 'sess-1', 'org-abc', 'user-xyz', 'jwt-token-123');
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.org_id).toBe('org-abc');
+      expect(body.user_id).toBe('user-xyz');
+      expect(body.auth_token).toBe('jwt-token-123');
+    });
+
+    it('omits org_id, user_id, auth_token when empty', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true })
+      });
+
+      await client.executeTool('ssh_exec', { host: 'h1' }, 'quox', 'sess-1', '', '', '');
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.org_id).toBeUndefined();
+      expect(body.user_id).toBeUndefined();
+      expect(body.auth_token).toBeUndefined();
+    });
   });
 
   describe('retries', () => {

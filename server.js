@@ -27,6 +27,9 @@ const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const sessionId = process.env.QUOX_SESSION_ID || '';
 const collectorUrl = process.env.QUOX_COLLECTOR_URL || 'http://127.0.0.1:9848';
 const serviceKey = process.env.QUOX_SERVICE_KEY || process.env.INTERNAL_SERVICE_KEY || '';
+const orgId = process.env.QUOX_ORG_ID || '';
+const userId = process.env.QUOX_USER_ID || '';
+const authToken = process.env.QUOX_AUTH_TOKEN || '';
 
 // --- Startup validation ---
 if (!serviceKey) {
@@ -82,7 +85,7 @@ async function main() {
   }
 
   // Register tools onto the MCP server
-  registerTools(server, tools, client, { agentId, sessionId });
+  registerTools(server, tools, client, { agentId, sessionId, orgId, userId, authToken });
 
   // Fetch and register MCP resources (read-only context)
   let resCount = 0;

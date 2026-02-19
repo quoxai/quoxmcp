@@ -264,6 +264,30 @@ describe('registerTools', () => {
     stderrSpy.mockRestore();
   });
 
+  it('passes orgId, userId, and authToken from context to client', async () => {
+    const { registerTools } = await import('../lib/tool-adapter.js');
+
+    let capturedHandler;
+    const mockServer = {
+      tool: (name, desc, shape, handler) => { capturedHandler = handler; }
+    };
+    const mockClient = {
+      executeTool: vi.fn().mockResolvedValue({ success: true })
+    };
+
+    registerTools(mockServer, [
+      { name: 'ctx_tool', description: 'Test', input_schema: { properties: {}, required: [] } }
+    ], mockClient, { agentId: 'quox', sessionId: 'sess-1', orgId: 'org-abc', userId: 'user-xyz', authToken: 'jwt-123' });
+
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await capturedHandler({ param: 'val' });
+
+    expect(mockClient.executeTool).toHaveBeenCalledWith(
+      'ctx_tool', { param: 'val' }, 'quox', 'sess-1', 'org-abc', 'user-xyz', 'jwt-123'
+    );
+    console.error.mockRestore();
+  });
+
   it('tool handler logs failure to stderr', async () => {
     const { registerTools } = await import('../lib/tool-adapter.js');
 
