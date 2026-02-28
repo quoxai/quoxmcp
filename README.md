@@ -229,6 +229,6 @@ QUOX_AGENT_ID=quox QUOX_COLLECTOR_URL=http://127.0.0.1:9848 timeout 5 node serve
 
 ## Related
 
-- [QuoxCORE](https://github.com/AdaminX/quox) — The platform dashboard and collector
+- [QuoxCORE](https://github.com/quoxai/quox) — The platform dashboard and collector
 - [quox.ai](https://quox.ai) — Product website
 - [MCP Specification](https://modelcontextprotocol.io) — Model Context Protocol docs
