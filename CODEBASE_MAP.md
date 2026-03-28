@@ -1,39 +1,40 @@
-<!-- Last verified: 2026-03-21 by /codebase-mirror -->
+<!-- Last verified: 2026-03-27 by /codebase-mirror -->
 
 # QuoxMCP — Codebase Map
 
 ## Metrics
-
 | Metric | Count |
 |--------|-------|
-| Version | 1.0.0 |
-| Entry point | server.js (STDIO MCP server) |
-| Lib modules | 5 |
-| Test files | 6 |
-
-## Stack
-
-Node.js, @modelcontextprotocol/sdk, Express (collector client), Vitest
+| Tools | 83+ (dynamic per agent RBAC) |
+| Resources | 5 |
+| Prompts | 4 |
+| Test Files | 6 |
 
 ## Architecture
 
-QuoxMCP is a thin MCP protocol adapter. All tool logic lives in the collector. QuoxMCP bridges Claude CLI to QuoxCORE infrastructure tools via STDIO.
+Thin MCP protocol adapter. All tools, resources, and prompts are fetched dynamically from QuoxCORE collector API at startup, then registered onto the MCP server.
 
-## Source Files
+## Registration Flow
+1. Tools fetched from collector at startup via `GET /api/v1/tools/list`
+2. JSON Schema parameters converted to Zod via `jsonSchemaToZodShape()`
+3. Each tool registered with `server.tool()`, handler proxies to `CollectorClient.executeTool()`
+4. Resources and prompts similarly fetched and registered
 
+## Authoritative Files
 | File | Purpose |
 |------|---------|
-| server.js | MCP server entry point, startup validation, registration |
-| lib/collector-client.js | HTTP client for collector API |
-| lib/tool-adapter.js | Registers collector tools as MCP tools |
-| lib/resource-adapter.js | Registers MCP resources |
-| lib/prompt-adapter.js | Registers MCP prompts |
-| lib/validate.js | Input validation utilities |
+| `server.js` | Entry point, startup orchestration, STDIO transport |
+| `lib/tool-adapter.js` | Tool registration + JSON→Zod conversion |
+| `lib/resource-adapter.js` | Resource registration (static + live with 30s TTL) |
+| `lib/prompt-adapter.js` | Prompt registration + Mustache templating |
+| `lib/collector-client.js` | HTTP client to collector API (retry + backoff) |
 
-## Test Files (test/)
+## Invariants
+| Check | Status | Details |
+|-------|--------|---------|
+| env-validation | ✓ pass | Required: QUOX_AGENT_ID, QUOX_SESSION_ID, QUOX_COLLECTOR_URL, QUOX_SERVICE_KEY |
+| tool-name-validation | ✓ pass | Alphanumeric/dash/underscore, max 128 chars |
+| template-injection | ✓ pass | Mustache args escaped before interpolation |
 
-6 files: adapter.test.js, client.test.js, security.test.js, resource-adapter.test.js, prompt-adapter.test.js, server.test.js
-
-## Environment Variables
-
-QUOX_AGENT_ID, QUOX_SESSION_ID, QUOX_COLLECTOR_URL, QUOX_SERVICE_KEY, QUOX_ORG_ID, QUOX_USER_ID, QUOX_AUTH_TOKEN
+## Test Files (6)
+adapter.test.js, client.test.js, prompt-adapter.test.js, resource-adapter.test.js, security.test.js, server.test.js
