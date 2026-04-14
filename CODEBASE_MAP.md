@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-04-13 by codebase-mirror scan -->
+<!-- Last verified: 2026-04-14 by codebase-mirror scan -->
 
 # QuoxMCP — Codebase Map
 
@@ -117,5 +117,5 @@ Pure protocol bridge — zero hardcoded tools. Tools, resources, and prompts are
 ## Deployment
 | File | Purpose |
 |------|---------|
-| `deploy/bundle.sh` | Creates distributable tarball |
+| `deploy/bundle.sh` | Creates distributable tarball (copies server.js, lib/, node_modules/, package.json) |
 | `deploy/quoxmcp-bundle.tar.gz` | Pre-built bundle (~15MB) |
