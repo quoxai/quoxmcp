@@ -31,7 +31,30 @@ Claude CLI               │                                │
 
 **Flow:** Claude CLI spawns QuoxMCP as a STDIO subprocess via `--mcp-config`. QuoxMCP fetches available tools, resources, and prompts from the collector at startup, registers them on the MCP server, then proxies every call back to the collector for execution.
 
-## Quick Start
+## Install in Claude Desktop (recommended)
+
+Download `quoxmcp.mcpb` from [the latest release](https://github.com/quoxai/quoxmcp/releases) and double-click it. Claude Desktop opens an install dialog and asks for two values:
+
+| Field | What to enter |
+|-------|--------------|
+| **Collector URL** | Base URL of your QuoxCORE collector — e.g. `http://192.168.88.126:9848` |
+| **Service Key** | `INTERNAL_SERVICE_KEY` from your QuoxCORE `.env` (or dashboard settings) |
+
+Click **Install**, restart Claude Desktop, and `quox` appears in the tools menu. That's the whole setup.
+
+> The bundle is unsigned for now, so macOS will show "unverified developer" the first time. Right-click → Open to bypass.
+
+### Verify
+
+In Claude Desktop, click the 🔌 icon and confirm `quox` is listed with 130+ tools. Try a prompt like *"run a fleet health check"* — it should invoke the `fleet-health` operational prompt.
+
+If install fails, check `~/Library/Logs/Claude/mcp-server-quoxmcp.log` (macOS) or `%APPDATA%\Claude\Logs\` (Windows).
+
+---
+
+## Manual install (advanced)
+
+For fleet hosts, headless installs, or when you need to run quoxmcp from source. Requires Node ≥20.
 
 ### 1. Install
 
@@ -71,9 +94,9 @@ QUOX_AGENT_ID=quox QUOX_COLLECTOR_URL=http://127.0.0.1:9848 timeout 5 node serve
 Expected output:
 ```
 [QuoxMCP] Starting — agent=quox, collector=http://127.0.0.1:9848
-[QuoxMCP] Fetched 79 tools for agent quox
-[QuoxMCP] Registered 79 tools, 5 resources, 4 prompts for agent quox
-[QuoxMCP] Connected — serving 79 tools, 5 resources, 4 prompts via STDIO
+[QuoxMCP] Fetched 130 tools for agent quox
+[QuoxMCP] Registered 130 tools, 5 resources, 4 prompts for agent quox
+[QuoxMCP] Connected — serving 130 tools, 5 resources, 4 prompts via STDIO
 ```
 
 ## Environment Variables
@@ -209,7 +232,10 @@ quoxmcp/
 │   ├── prompt-adapter.test.js   # Prompt adapter + template tests (23)
 │   └── security.test.js         # Security hardening tests (40)
 ├── deploy/
-│   └── bundle.sh                # Bundle packaging for remote deployment
+│   └── bundle.sh                # Tarball packaging for remote fleet deployment
+├── manifest.json                # MCPB manifest for Claude Desktop installs
+├── dist/
+│   └── quoxmcp.mcpb             # Built .mcpb (gitignored — produced by mcpb pack)
 ├── package.json
 └── README.md
 ```
@@ -217,7 +243,7 @@ quoxmcp/
 ## Development
 
 ```bash
-# Run all tests (121 tests across 6 files)
+# Run all tests (157 tests across 7 files)
 npm test
 
 # Run tests in watch mode
@@ -226,6 +252,27 @@ npx vitest
 # Test against live collector
 QUOX_AGENT_ID=quox QUOX_COLLECTOR_URL=http://127.0.0.1:9848 timeout 5 node server.js
 ```
+
+### Building the `.mcpb` bundle
+
+```bash
+# One-time: install Anthropic's MCPB CLI
+npm install -g @anthropic-ai/mcpb
+
+# Validate manifest
+mcpb validate manifest.json
+
+# Build the bundle (output: dist/quoxmcp.mcpb)
+# Stage prod-only files first to keep the bundle small
+mkdir -p build dist
+cp manifest.json server.js package.json build/
+cp -r lib build/
+npm install --production --prefix build  # OR: cp -r node_modules build/ then prune devDeps
+mcpb pack build dist/quoxmcp.mcpb
+mcpb info dist/quoxmcp.mcpb
+```
+
+The resulting `.mcpb` is ~3MB and installs into Claude Desktop with a double-click. Attach it to a GitHub release for distribution.
 
 ## Related
 

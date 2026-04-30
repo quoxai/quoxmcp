@@ -1,6 +1,6 @@
 {
   "name": "@quox/mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "QuoxMCP \u2014 AI Infrastructure Engine. MCP server bridging Claude to QuoxCORE infrastructure tools.",
   "main": "server.js",
   "bin": {

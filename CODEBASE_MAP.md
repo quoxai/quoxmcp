@@ -1,121 +1,211 @@
-<!-- Last verified: 2026-04-14 by codebase-mirror scan -->
+<!-- Last verified: 2026-04-30 by codebase-mirror scan -->
 
-# QuoxMCP — Codebase Map
-
-MCP (Model Context Protocol) server bridging Claude CLI to QuoxCORE infrastructure tools.
+# quoxmcp — Codebase Map
 
 ## Metrics
-| Metric | Count |
+| Metric | Value |
 |--------|-------|
-| Lib Modules | 5 |
-| Test Files | 7 |
-| Source Lines | 784 |
-| Test Lines | 1776 |
+| Source lines | 784 |
+| Lib modules | 5 |
+| Test files | 7 |
+| Test lines | 1,776 |
+| Direct deps | 1 (`@modelcontextprotocol/sdk`) |
+| Dev deps | 1 (`vitest`) |
+| Tools/resources/prompts | dynamic (collector-sourced) |
+
+## Package
+- **Name:** `@quox/mcp` v1.0.0
+- **Main:** `server.js` (CLI bin: `quoxmcp`)
+- **License:** BUSL-1.1
+- **Node:** >=20.0.0
 
 ## Architecture
-Pure protocol bridge — zero hardcoded tools. Tools, resources, and prompts are dynamically fetched from collector API at startup via `CollectorClient.listTools(agentId)`.
-
 ```
-┌─────────────────┐     STDIO      ┌─────────────────┐     HTTP      ┌─────────────────┐
-│   Claude CLI    │◄──────────────►│    QuoxMCP      │◄────────────►│   Collector API │
-│  (mcp-config)   │   MCP Protocol │   server.js     │  /api/v1/*   │   (port 9848)   │
-└─────────────────┘                └─────────────────┘              └─────────────────┘
+Claude CLI ──STDIO──► QuoxMCP ──HTTP──► QuoxCORE Collector (port 9848)
+                         │                      │
+                    MCP JSON-RPC           RBAC, Bastion, Audit
+                    stdin/stdout                │
+                         ▼                      ▼
+                   Protocol Adapter        Infrastructure
+                   (no tool logic)         (SSH, Docker, Proxmox, etc.)
 ```
 
-## Authoritative Files
-| File | Lines | Purpose |
-|------|-------|---------|
-| `server.js` | 128 | Entry point — env validation, McpServer creation, transport setup |
-| `lib/tool-adapter.js` | 176 | Converts collector tool defs (Anthropic JSON Schema) → MCP Zod registrations |
-| `lib/collector-client.js` | 127 | HTTP client for collector API (tools, resources, prompts, execute) |
-| `lib/validate.js` | 131 | Input validation (IDs, URLs, tool names, resource URIs, size limits) |
-| `lib/prompt-adapter.js` | 113 | Mustache-style template interpolation for prompts |
-| `lib/resource-adapter.js` | 109 | Static + live MCP resources (30s TTL cache) |
-
-## Test Coverage
-| Test File | Lines | Scope |
-|-----------|-------|-------|
-| `test/security.test.js` | 414 | Comprehensive security validation (injection, overflow, sanitization) |
-| `test/adapter.test.js` | 313 | Tool adapter JSON Schema → Zod conversion |
-| `test/client.test.js` | 248 | CollectorClient HTTP methods, retries, error handling |
-| `test/prompt-adapter.test.js` | 227 | Template interpolation, conditional blocks, escaping |
-| `test/validate.test.js` | 212 | All validation functions |
-| `test/resource-adapter.test.js` | 209 | Resource registration, TTL cache, live/static modes |
-| `test/server.test.js` | 153 | Server startup, env validation, shutdown |
-
-## Collector API Endpoints
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/v1/tools/list?agent_id=` | Fetch available tools for agent |
-| POST | `/api/v1/tools/execute` | Execute tool (RBAC-checked) |
-| GET | `/api/v1/resources/list` | Fetch MCP resource definitions |
-| GET | `/api/v1/prompts/list` | Fetch MCP prompt templates |
+QuoxMCP is a **thin protocol bridge** — tools, resources, and prompts are fetched from the collector API at startup. No domain logic lives here; all execution goes through the collector which handles RBAC, bastion routing, and audit trails.
 
 ## Environment Variables
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `QUOX_SERVICE_KEY` | Yes | Service authentication (or `INTERNAL_SERVICE_KEY`) |
-| `QUOX_AGENT_ID` | No | Agent identity for RBAC (default: `quox`) |
-| `QUOX_SESSION_ID` | No | Session identifier for context |
-| `QUOX_COLLECTOR_URL` | No | Collector API base (default: `http://127.0.0.1:9848`) |
-| `QUOX_ORG_ID` | No | Organisation ID for multi-tenant |
-| `QUOX_USER_ID` | No | User ID for audit trails |
-| `QUOX_AUTH_TOKEN` | No | User auth token passthrough |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `QUOX_SERVICE_KEY` | Yes | — | Service key for collector auth (or `INTERNAL_SERVICE_KEY`) |
+| `QUOX_AGENT_ID` | No | `quox` | Agent identity for RBAC |
+| `QUOX_SESSION_ID` | No | `""` | Session identifier for context |
+| `QUOX_COLLECTOR_URL` | No | `http://127.0.0.1:9848` | Collector API base URL |
+| `QUOX_ORG_ID` | No | `""` | Organisation ID for multi-tenant context |
+| `QUOX_USER_ID` | No | `""` | User ID for audit trail |
+| `QUOX_AUTH_TOKEN` | No | `""` | Auth token passed through to collector |
 
-## Security Invariants
-| Check | Status | Details |
-|-------|--------|---------|
-| env-validation | pass | Service key required, agent ID format validated |
-| tool-name-validation | pass | Tool names sanitized (`SAFE_TOOL_NAME` regex: alphanumeric, `_`, `.`, `-`, max 128 chars) |
-| template-injection | pass | Prompt templates use `escapeTemplateChars()` |
-| input-size-limit | pass | 1MB max input size (`inputTooLarge()`) |
-| resource-uri-scheme | pass | Only `quox://`, `http://`, `https://` allowed |
-| error-sanitization | pass | Internal IPs/paths stripped from error messages |
+## Startup Flow (`server.js:60-115`)
+1. Validate env: `QUOX_SERVICE_KEY` (fatal if missing), `QUOX_AGENT_ID`, `QUOX_SESSION_ID`, `QUOX_COLLECTOR_URL`
+2. Create `CollectorClient`, fetch tools from `GET /api/v1/tools/list` (exit if unreachable)
+3. Fetch resources from `GET /api/v1/resources/list`
+4. Fetch prompts from `GET /api/v1/prompts/list`
+5. Register tools + resources + prompts via adapters
+6. Connect via `StdioServerTransport` to Claude CLI
+7. Graceful shutdown on SIGTERM/SIGINT
 
-## Dependencies
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@modelcontextprotocol/sdk` | ^1.0.0 | MCP server primitives (runtime) |
-| `vitest` | ^4.0.0 | Test framework (dev) |
+## Directory Structure
+```
+quoxmcp/
+├── server.js                 # Entry point, MCP server setup (128 lines)
+├── package.json              # @quox/mcp
+├── README.md                 # Full documentation
+├── CODEBASE_MAP.md           # This file
+├── lib/
+│   ├── collector-client.js   # HTTP client to collector API (127 lines)
+│   ├── tool-adapter.js       # Collector tools → MCP tools (176 lines)
+│   ├── validate.js           # Input/URL/ID validation (131 lines)
+│   ├── prompt-adapter.js     # Prompt registration + templating (113 lines)
+│   └── resource-adapter.js   # Resource registration + caching (109 lines)
+├── test/
+│   ├── security.test.js      # Input validation, injection prevention (414 lines)
+│   ├── adapter.test.js       # JSON Schema → Zod, tool registration (313 lines)
+│   ├── client.test.js        # CollectorClient HTTP, retries (248 lines)
+│   ├── prompt-adapter.test.js # Prompt templating tests (227 lines)
+│   ├── validate.test.js      # Validation utility tests (212 lines)
+│   ├── resource-adapter.test.js # Resource caching tests (209 lines)
+│   └── server.test.js        # Server startup tests (153 lines)
+└── deploy/
+    ├── bundle.sh             # Build deployment tarball (60 lines)
+    └── quoxmcp-bundle.tar.gz # Pre-built bundle (~15MB)
+```
 
-## Key Functions
+## Lib Modules
 
-### server.js
-- `main()` — Startup sequence: validate env, create McpServer, fetch tools/resources/prompts, connect STDIO transport
-- `shutdown(signal)` — Graceful SIGTERM/SIGINT handler
+### collector-client.js (127 lines)
+HTTP client for QuoxCORE collector API with retry logic and auth.
 
-### tool-adapter.js
-- `registerTools(server, tools, client, ctx)` — Main registration loop, validates tool names, converts schemas
-- `jsonSchemaToZodShape(properties, required)` — Recursive JSON Schema → Zod conversion (handles nested objects, arrays, enums)
-- `jsonSchemaToZodItem(items)` — Array item schema conversion
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `listTools(agentId)` | `GET /api/v1/tools/list?agent_id=` | Fetch tools for agent |
+| `listResources()` | `GET /api/v1/resources/list` | Fetch MCP resources |
+| `listPrompts()` | `GET /api/v1/prompts/list` | Fetch MCP prompts |
+| `executeTool(name, input, agentId, sessionId, orgId, userId, authToken)` | `POST /api/v1/tools/execute` | Execute tool via collector |
 
-### collector-client.js
-- `listTools(agentId)` — GET tools for agent
-- `listResources()` — GET MCP resources
-- `listPrompts()` — GET prompt templates
-- `executeTool(name, input, agentId, sessionId, orgId, userId, authToken)` — POST tool execution with full context
-- `_request(path, opts)` — Retry logic with exponential backoff (max 2 retries, 8s cap)
+**Config:** 30s timeout, 2 retries with exponential backoff (max 8s), `X-Service-Key` header injection.
 
-### validate.js
-- `isValidId(id)` — Validate agent/session IDs (alphanumeric/dash/underscore, max 64 chars)
-- `isValidToolName(name)` — Validate tool names (128 chars, safe chars)
-- `validateUrl(url)` — URL validation with HTTP warning for non-private networks
-- `isValidResourceUri(uri)` — Resource URI scheme check
-- `sanitizeError(message)` — Strip internal IPs, paths, hostnames from errors
-- `escapeTemplateChars(value)` — Prevent template injection (`{{` → `\{\{`)
-- `inputTooLarge(input)` — 1MB limit check
+### tool-adapter.js (176 lines)
+Converts collector tool definitions (Anthropic format) to MCP tool registrations.
 
-### prompt-adapter.js
-- `registerPrompts(server, prompts)` — Register prompts with Zod arg shapes
-- `interpolateArgs(template, args)` — Mustache-style substitution with conditionals: `{{var}}`, `{{#var}}...{{/var}}`, `{{^var}}...{{/var}}`, `{{var|default}}`
-- `buildArgsShape(args)` — Convert arg defs to Zod shape
+| Export | Description |
+|--------|-------------|
+| `registerTools(server, tools, client, ctx)` | Register tools onto MCP server |
+| `jsonSchemaToZodShape(properties, required)` | Convert JSON Schema → Zod shape |
+| `jsonSchemaToZodItem(items)` | Convert array item schema → Zod |
 
-### resource-adapter.js
-- `registerResources(server, resources, client)` — Register static/live resources
-- `_resourceCache` — TTL cache (30s) for live resources, avoids re-fetch on every read
+**Features:**
+- Name validation: alphanumeric/dash/underscore/dot, max 128 chars
+- Handles enums, nested objects, typed arrays, default values
+- Input size limit: 1MB
+- Logs execution time to stderr
+
+### validate.js (131 lines)
+Centralised validation and sanitisation utilities.
+
+| Export | Description |
+|--------|-------------|
+| `SAFE_ID` | Regex: `/^[a-zA-Z0-9_-]{1,64}$/` |
+| `SAFE_TOOL_NAME` | Regex: `/^[a-zA-Z0-9_.-]{1,128}$/` |
+| `MAX_INPUT_SIZE` | 1MB (1,048,576 bytes) |
+| `ALLOWED_URI_SCHEMES` | `['quox:', 'https:', 'http:']` |
+| `isValidId(id)` | Validate agent/session ID |
+| `isValidToolName(name)` | Validate tool name |
+| `validateUrl(url)` | Parse and validate collector URL |
+| `isValidResourceUri(uri)` | Validate resource URI scheme |
+| `sanitizeError(msg)` | Strip internal IPs, paths, hostnames |
+| `escapeTemplateChars(val)` | Prevent mustache template injection |
+| `inputTooLarge(input)` | Check if input exceeds 1MB |
+
+### prompt-adapter.js (113 lines)
+Registers MCP prompts with mustache-style templating.
+
+| Export | Description |
+|--------|-------------|
+| `registerPrompts(server, prompts)` | Register prompts onto MCP server |
+| `buildArgsShape(args)` | Build Zod shape from argument definitions |
+| `interpolateArgs(template, args)` | Interpolate values into template |
+
+**Template syntax:**
+- `{{var}}` — simple substitution
+- `{{var|default}}` — substitution with default value
+- `{{#var}}...{{/var}}` — conditional block (if var is set)
+- `{{^var}}...{{/var}}` — inverse block (if var is NOT set)
+
+User values are escaped via `escapeTemplateChars()` to prevent injection.
+
+### resource-adapter.js (109 lines)
+Registers MCP resources with optional live fetching and TTL caching.
+
+| Export | Description |
+|--------|-------------|
+| `registerResources(server, resources, client)` | Register resources onto MCP server |
+| `_resourceCache` | Internal TTL cache (Map) |
+| `RESOURCE_CACHE_TTL` | 30 seconds |
+
+**Resource types:**
+- **Static:** Pre-rendered content, served directly
+- **Live:** Re-fetched on each read (cached for 30s)
+
+## Security Model
+
+| Layer | Implementation |
+|-------|----------------|
+| **Authentication** | Service key required (`QUOX_SERVICE_KEY`), sent as `X-Service-Key` header |
+| **ID validation** | Agent/session IDs must match `SAFE_ID` pattern |
+| **Tool name validation** | Must match `SAFE_TOOL_NAME` pattern |
+| **URL validation** | Only http/https; warns on HTTP over public networks |
+| **Resource URI validation** | Only `quox://`, `http://`, `https://` schemes |
+| **Error sanitisation** | Strips internal IPs, paths, hostnames from messages |
+| **Input size limits** | 1MB max for tool inputs |
+| **Template injection** | User values escaped in prompt interpolation |
+
+## Tests
+
+| File | Lines | Focus |
+|------|-------|-------|
+| security.test.js | 414 | Input validation, auth, injection prevention, size limits |
+| adapter.test.js | 313 | JSON Schema → Zod conversion, tool registration |
+| client.test.js | 248 | HTTP client, retries, error handling |
+| prompt-adapter.test.js | 227 | Prompt registration, template interpolation |
+| validate.test.js | 212 | Validation utilities |
+| resource-adapter.test.js | 209 | Resource registration, TTL cache |
+| server.test.js | 153 | MCP server creation, env defaults |
+
+**Run:** `npm test` (Vitest)
 
 ## Deployment
-| File | Purpose |
-|------|---------|
-| `deploy/bundle.sh` | Creates distributable tarball (copies server.js, lib/, node_modules/, package.json) |
-| `deploy/quoxmcp-bundle.tar.gz` | Pre-built bundle (~15MB) |
+
+Bundle script creates a self-contained tarball for remote hosts:
+```bash
+cd /home/control/quoxmcp/deploy && ./bundle.sh
+```
+
+Remote layout:
+```
+/opt/quoxmcp/
+├── server.js
+├── lib/
+├── node_modules/
+└── package.json
+
+/etc/quoxmcp/
+└── mcp-config.json   # Service key config (chmod 600)
+```
+
+Usage:
+```bash
+claude --mcp-config /etc/quoxmcp/mcp-config.json
+```
+
+## Related
+
+- [QuoxCORE](https://github.com/quoxai/quox) — Platform dashboard and collector
+- [MCP Specification](https://modelcontextprotocol.io) — Model Context Protocol docs
