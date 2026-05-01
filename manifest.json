@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "quoxmcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "QuoxMCP — bridges Claude Desktop to your QuoxCORE collector. Surfaces 130+ infrastructure tools, 5 resources, and 4 operational prompts via MCP.",
   "author": {
     "name": "Quox"
@@ -21,7 +21,9 @@
       "env": {
         "QUOX_COLLECTOR_URL": "${user_config.collector_url}",
         "QUOX_SERVICE_KEY": "${user_config.service_key}",
-        "QUOX_AGENT_ID": "${user_config.agent_id}"
+        "QUOX_AGENT_ID": "${user_config.agent_id}",
+        "QUOX_ORG_ID": "${user_config.org_id}",
+        "QUOX_USER_ID": "${user_config.user_id}"
       }
     }
   },
@@ -46,6 +48,18 @@
       "description": "RBAC agent identity. 'quox' = full access; specialist agents (CIPHER, NOVA, ATLAS, etc.) get tool subsets.",
       "default": "quox",
       "required": false
+    },
+    "org_id": {
+      "type": "string",
+      "title": "Organisation ID",
+      "description": "Your QuoxCORE org ID. Required for audit trail attribution. Find it in your dashboard profile.",
+      "required": true
+    },
+    "user_id": {
+      "type": "string",
+      "title": "User ID",
+      "description": "Your QuoxCORE user ID. Required for audit trail attribution. Find it in your dashboard profile.",
+      "required": true
     }
   }
 }

@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-04-30 by codebase-mirror scan -->
+<!-- Last verified: 2026-05-01 by codebase-mirror scan (re-verified) -->
 
 # quoxmcp — Codebase Map
 
@@ -14,7 +14,7 @@
 | Tools/resources/prompts | dynamic (collector-sourced) |
 
 ## Package
-- **Name:** `@quox/mcp` v1.0.0
+- **Name:** `@quox/mcp` v1.1.0
 - **Main:** `server.js` (CLI bin: `quoxmcp`)
 - **License:** BUSL-1.1
 - **Node:** >=20.0.0
@@ -56,7 +56,8 @@ QuoxMCP is a **thin protocol bridge** — tools, resources, and prompts are fetc
 ```
 quoxmcp/
 ├── server.js                 # Entry point, MCP server setup (128 lines)
-├── package.json              # @quox/mcp
+├── package.json              # @quox/mcp v1.1.0
+├── manifest.json             # MCPB manifest for Claude Desktop install (51 lines)
 ├── README.md                 # Full documentation
 ├── CODEBASE_MAP.md           # This file
 ├── lib/
@@ -73,9 +74,12 @@ quoxmcp/
 │   ├── validate.test.js      # Validation utility tests (212 lines)
 │   ├── resource-adapter.test.js # Resource caching tests (209 lines)
 │   └── server.test.js        # Server startup tests (153 lines)
-└── deploy/
-    ├── bundle.sh             # Build deployment tarball (60 lines)
-    └── quoxmcp-bundle.tar.gz # Pre-built bundle (~15MB)
+├── deploy/
+│   ├── bundle.sh             # Build deployment tarball (61 lines)
+│   └── quoxmcp-bundle.tar.gz # Pre-built bundle (~15MB)
+├── build/                    # Staging for MCPB packaging (gitignored)
+└── dist/
+    └── quoxmcp.mcpb          # Claude Desktop one-click install (~3.3MB, gitignored)
 ```
 
 ## Lib Modules
@@ -181,8 +185,37 @@ Registers MCP resources with optional live fetching and TTL caching.
 
 **Run:** `npm test` (Vitest)
 
+## MCPB Packaging (Claude Desktop Install)
+
+The `manifest.json` enables one-click install in Claude Desktop via MCPB format:
+
+```json
+{
+  "manifest_version": "0.3",
+  "name": "quoxmcp",
+  "version": "1.1.0",
+  "server": {
+    "type": "node",
+    "entry_point": "server.js"
+  },
+  "user_config": {
+    "collector_url": { "type": "string", "default": "http://127.0.0.1:9848" },
+    "service_key": { "type": "string", "sensitive": true },
+    "agent_id": { "type": "string", "default": "quox" }
+  }
+}
+```
+
+Build MCPB bundle: `npm run build:mcpb` (outputs to `dist/quoxmcp.mcpb`)
+
 ## Deployment
 
+### MCPB (Claude Desktop)
+1. Build: generates `dist/quoxmcp.mcpb`
+2. Share file or URL with users
+3. Claude Desktop auto-extracts and prompts for config
+
+### Manual Tarball
 Bundle script creates a self-contained tarball for remote hosts:
 ```bash
 cd /home/control/quoxmcp/deploy && ./bundle.sh
