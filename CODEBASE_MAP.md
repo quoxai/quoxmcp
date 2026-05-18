@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-05-14T18:15Z by codebase-mirror scan -->
+<!-- Last verified: 2026-05-18 by codebase-mirror scan -->
 
 # quoxmcp — Codebase Map
 
@@ -10,6 +10,7 @@
 | Source lines | 831 (server.js: 163, lib/: 668) |
 | Lib modules | 5 |
 | Test files | 7 |
+| Test cases | 157 |
 | Test lines | 1,776 |
 | Direct deps | 2 (`@modelcontextprotocol/sdk`, `zod`) |
 | Dev deps | 1 (`vitest`) |
@@ -65,10 +66,9 @@ QuoxMCP is a **thin protocol bridge** — tools, resources, and prompts are fetc
 quoxmcp/
 ├── server.js                 # Entry point, MCP server setup (163 lines)
 ├── package.json              # @quox/mcp v1.2.0
-├── manifest.json             # MCPB manifest for Claude Desktop install (65 lines)
-├── README.md                 # Full documentation (281 lines)
+├── manifest.json             # MCPB manifest for Claude Desktop install
+├── README.md                 # Full documentation
 ├── CODEBASE_MAP.md           # This file
-├── LICENSE                   # BUSL-1.1 license
 ├── lib/
 │   ├── validate.js           # Input/URL/ID validation (131 lines)
 │   ├── collector-client.js   # HTTP client to collector API (127 lines)
@@ -76,24 +76,24 @@ quoxmcp/
 │   ├── resource-adapter.js   # Resource registration + caching (121 lines)
 │   └── prompt-adapter.js     # Prompt registration + templating (113 lines)
 ├── test/
-│   ├── security.test.js      # Input validation, injection prevention (414 lines)
-│   ├── adapter.test.js       # JSON Schema → Zod, tool registration (313 lines)
-│   ├── client.test.js        # CollectorClient HTTP, retries (248 lines)
-│   ├── prompt-adapter.test.js # Prompt templating tests (227 lines)
-│   ├── validate.test.js      # Validation utility tests (212 lines)
-│   ├── resource-adapter.test.js # Resource caching tests (209 lines)
-│   └── server.test.js        # Server startup tests (153 lines)
+│   ├── security.test.js      # Input validation, injection prevention (40 tests, 414 lines)
+│   ├── validate.test.js      # Validation utility tests (33 tests, 212 lines)
+│   ├── adapter.test.js       # JSON Schema → Zod, tool registration (23 tests, 313 lines)
+│   ├── prompt-adapter.test.js # Prompt templating tests (23 tests, 227 lines)
+│   ├── client.test.js        # CollectorClient HTTP, retries (18 tests, 248 lines)
+│   ├── resource-adapter.test.js # Resource caching tests (13 tests, 209 lines)
+│   └── server.test.js        # Server startup tests (7 tests, 153 lines)
 ├── deploy/
-│   ├── bundle.sh             # Build deployment tarball
+│   ├── bundle.sh             # Build deployment tarball (60 lines)
 │   └── quoxmcp-bundle.tar.gz # Pre-built bundle for remote hosts (~15MB)
-├── build/                    # Staging for MCPB packaging (mirrors src)
+├── build/                    # Staging for MCPB packaging
 │   ├── server.js
 │   ├── lib/                  # Lib modules
 │   ├── manifest.json
 │   ├── package.json
 │   └── node_modules/         # Production deps only
 └── dist/
-    └── quoxmcp.mcpb          # Claude Desktop one-click install (~3.3MB)
+    └── quoxmcp.mcpb          # Claude Desktop one-click install (~3.2MB)
 ```
 
 ## Lib Modules
@@ -190,15 +190,16 @@ User values are escaped via `escapeTemplateChars()` to prevent injection.
 
 ## Tests
 
-| File | Focus | Lines |
-|------|-------|-------|
-| security.test.js | Input validation, auth, injection prevention, size limits | 414 |
-| adapter.test.js | JSON Schema → Zod conversion, tool registration | 313 |
-| client.test.js | HTTP client, retries, error handling | 248 |
-| prompt-adapter.test.js | Prompt registration, template interpolation | 227 |
-| validate.test.js | Validation utilities | 212 |
-| resource-adapter.test.js | Resource registration, TTL cache | 209 |
-| server.test.js | MCP server creation, env defaults | 153 |
+| File | Tests | Lines | Focus |
+|------|-------|-------|-------|
+| security.test.js | 40 | 414 | Input validation, auth, injection prevention, size limits |
+| validate.test.js | 33 | 212 | Validation utilities |
+| adapter.test.js | 23 | 313 | JSON Schema → Zod conversion, tool registration |
+| prompt-adapter.test.js | 23 | 227 | Prompt registration, template interpolation |
+| client.test.js | 18 | 248 | HTTP client, retries, error handling |
+| resource-adapter.test.js | 13 | 209 | Resource registration, TTL cache |
+| server.test.js | 7 | 153 | MCP server creation, env defaults |
+| **Total** | **157** | **1,776** | |
 
 **Run:** `npm test` (Vitest)
 
