@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-05-18 by codebase-mirror scan -->
+<!-- Last verified: 2026-05-31T09:16 by codebase-mirror scan -->
 
 # quoxmcp — Codebase Map
 
@@ -77,15 +77,15 @@ quoxmcp/
 │   └── prompt-adapter.js     # Prompt registration + templating (113 lines)
 ├── test/
 │   ├── security.test.js      # Input validation, injection prevention (40 tests, 414 lines)
-│   ├── validate.test.js      # Validation utility tests (33 tests, 212 lines)
 │   ├── adapter.test.js       # JSON Schema → Zod, tool registration (23 tests, 313 lines)
-│   ├── prompt-adapter.test.js # Prompt templating tests (23 tests, 227 lines)
 │   ├── client.test.js        # CollectorClient HTTP, retries (18 tests, 248 lines)
+│   ├── prompt-adapter.test.js # Prompt templating tests (23 tests, 227 lines)
+│   ├── validate.test.js      # Validation utility tests (33 tests, 212 lines)
 │   ├── resource-adapter.test.js # Resource caching tests (13 tests, 209 lines)
 │   └── server.test.js        # Server startup tests (7 tests, 153 lines)
 ├── deploy/
-│   ├── bundle.sh             # Build deployment tarball (60 lines)
-│   └── quoxmcp-bundle.tar.gz # Pre-built bundle for remote hosts (~15MB)
+│   ├── bundle.sh             # Build deployment tarball
+│   └── quoxmcp-bundle.tar.gz # Pre-built bundle for remote hosts (~14.5MB)
 ├── build/                    # Staging for MCPB packaging
 │   ├── server.js
 │   ├── lib/                  # Lib modules
@@ -193,10 +193,10 @@ User values are escaped via `escapeTemplateChars()` to prevent injection.
 | File | Tests | Lines | Focus |
 |------|-------|-------|-------|
 | security.test.js | 40 | 414 | Input validation, auth, injection prevention, size limits |
-| validate.test.js | 33 | 212 | Validation utilities |
 | adapter.test.js | 23 | 313 | JSON Schema → Zod conversion, tool registration |
-| prompt-adapter.test.js | 23 | 227 | Prompt registration, template interpolation |
 | client.test.js | 18 | 248 | HTTP client, retries, error handling |
+| prompt-adapter.test.js | 23 | 227 | Prompt registration, template interpolation |
+| validate.test.js | 33 | 212 | Validation utilities |
 | resource-adapter.test.js | 13 | 209 | Resource registration, TTL cache |
 | server.test.js | 7 | 153 | MCP server creation, env defaults |
 | **Total** | **157** | **1,776** | |
