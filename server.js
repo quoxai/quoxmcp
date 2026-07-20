@@ -32,7 +32,7 @@ const userId = process.env.QUOX_USER_ID || '';
 const authToken = process.env.QUOX_AUTH_TOKEN || '';
 
 // Stable session ID: use provided value or generate a UUID for this process lifetime
-const sessionId = rawSessionId || (() => {
+let sessionId = rawSessionId || (() => {
   const generated = crypto.randomUUID();
   console.error(`[QuoxMCP] Generated session_id: ${generated}`);
   return generated;
@@ -66,9 +66,15 @@ if (!isValidId(agentId)) {
   process.exit(1);
 }
 
+// Matrix-originated turns use the room id as the correlation id
+// (e.g. "matrix_!room:server"), which legitimately contains '!' and ':'. The
+// session id is correlation context only, NOT a security boundary, so sanitize
+// it to the safe charset instead of fatal-exiting before server.connect() —
+// that hard-exit left every Matrix/Rooms/Slack/Telegram agent stuck "connecting"
+// with zero tools, even after the user_id fix.
 if (rawSessionId && !isValidId(rawSessionId)) {
-  console.error('[QuoxMCP] FATAL: Invalid QUOX_SESSION_ID. Must be alphanumeric/dash/underscore, max 64 chars.');
-  process.exit(1);
+  sessionId = rawSessionId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  console.error(`[QuoxMCP] Non-conforming QUOX_SESSION_ID sanitized to "${sessionId}".`);
 }
 
 const urlCheck = validateUrl(collectorUrl);
