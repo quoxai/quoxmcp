@@ -51,10 +51,14 @@ if (!orgId) {
   process.exit(1);
 }
 
+// A missing user_id is LEGITIMATE for org-scoped service/agent contexts: the Matrix
+// appservice and workflow-agent invokes call the governed chat with a service key +
+// org_id and no interactive user (collectorBrain.js omits user_id by design). Only
+// the interactive dashboard path carries a user. Fatal-exiting here killed the MCP
+// handshake BEFORE server.connect() for every Rooms/appservice agent turn, leaving
+// the session stuck "connecting" with zero tools. Warn and continue org-scoped.
 if (!userId) {
-  console.error('[QuoxMCP] FATAL: QUOX_USER_ID is required. Set it via the user_id field in your MCP config.');
-  console.error('[QuoxMCP] Find your user ID in your QuoxCORE dashboard profile.');
-  process.exit(1);
+  console.error('[QuoxMCP] No QUOX_USER_ID — running as an org-scoped service context (agent/appservice invoke).');
 }
 
 if (!isValidId(agentId)) {
@@ -110,9 +114,13 @@ async function main() {
     tools = data.tools || [];
     console.error(`[QuoxMCP] Fetched ${tools.length} tools for agent ${agentId}`);
   } catch (err) {
-    console.error(`[QuoxMCP] Failed to fetch tools from collector: ${sanitizeError(err.message)}`);
-    console.error(`[QuoxMCP] Ensure collector is running and reachable.`);
-    process.exit(1);
+    // Do NOT exit here. Exiting before server.connect() leaves the parent Claude CLI
+    // stuck "connecting" with zero tools for the WHOLE session on any transient
+    // collector condition (not-yet-listening at spawn time, a stacked auth-service
+    // timeout, a 5xx). Degrade gracefully: connect with an empty tool set so the
+    // session stays alive and self-heals on the next turn instead of hard-hanging.
+    console.error(`[QuoxMCP] Failed to fetch tools from collector: ${sanitizeError(err.message)} — connecting with 0 tools (degraded).`);
+    tools = [];
   }
 
   if (tools.length === 0) {
