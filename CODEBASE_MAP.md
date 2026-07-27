@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-27T03:20:00Z by /codebase-mirror -->
+<!-- Last verified: 2026-07-27T15:16:00Z by /codebase-mirror -->
 
 # quoxmcp — Codebase Map
 
@@ -71,7 +71,8 @@ quoxmcp/
 │   └── validate.test.js         # Validation utilities tests
 ├── build/                       # Staged MCPB assets (server.js, lib/, package.json, node_modules/)
 ├── deploy/
-│   └── bundle.sh                # Tarball packaging script
+│   ├── bundle.sh                # Tarball packaging script
+│   └── quoxmcp-bundle.tar.gz    # Pre-built deployment tarball
 ├── dist/
 │   └── quoxmcp.mcpb             # Claude Desktop bundle (gitignored)
 ├── manifest.json                # MCPB manifest
