@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-27T15:16:00Z by /codebase-mirror -->
+<!-- Last verified: 2026-08-11 by /codebase-mirror -->
 
 # quoxmcp — Codebase Map
 
@@ -10,8 +10,8 @@
 |--------|-------|
 | Source lines | 845 (server.js: 177, lib/: 668) |
 | Test lines | 1776 |
+| Test cases | 157 (across 7 files) |
 | Lib modules | 5 |
-| Test files | 7 |
 | Runtime deps | 2 (`@modelcontextprotocol/sdk`, `zod`) |
 | Dev deps | 1 (`vitest`) |
 | Tools / resources / prompts | dynamic (fetched from collector at startup) |
@@ -69,16 +69,15 @@ quoxmcp/
 │   ├── prompt-adapter.test.js   # Template tests
 │   ├── security.test.js         # Security hardening tests
 │   └── validate.test.js         # Validation utilities tests
-├── build/                       # Staged MCPB assets (server.js, lib/, package.json, node_modules/)
 ├── deploy/
 │   ├── bundle.sh                # Tarball packaging script
 │   └── quoxmcp-bundle.tar.gz    # Pre-built deployment tarball
-├── dist/
-│   └── quoxmcp.mcpb             # Claude Desktop bundle (gitignored)
-├── manifest.json                # MCPB manifest
+├── manifest.json                # MCPB manifest (Claude Desktop bundle config)
 ├── package.json
 └── README.md
 ```
+
+Build artifacts (`dist/quoxmcp.mcpb`, MCPB staging) are gitignored and not present in this checkout.
 
 ## Registration Chains
 
@@ -139,7 +138,7 @@ Registers MCP resources with caching for live resources.
 - `registerResources(server, resources, client)` — main registration loop
 - `_resourceCache` — Map for TTL caching
 - `RESOURCE_CACHE_TTL` — 30 seconds
-- `RESOURCE_CACHE_MAX` — 100 entries (LRU eviction)
+- `RESOURCE_CACHE_MAX` — 100 entries (oldest-first eviction)
 
 **URI schemes:** `quox://`, `https://`, `http://`
 
@@ -199,15 +198,15 @@ Centralised security validation utilities.
 
 ## Test Coverage
 
-| File | Lines | Focus |
-|------|-------|-------|
-| `server.test.js` | 153 | MCP server integration |
-| `adapter.test.js` | 313 | Schema conversion |
-| `client.test.js` | 248 | HTTP client, retries |
-| `resource-adapter.test.js` | 209 | Caching, live/static |
-| `prompt-adapter.test.js` | 227 | Template interpolation |
-| `security.test.js` | 414 | Input validation |
-| `validate.test.js` | 212 | Validation utilities |
+| File | Lines | Cases | Focus |
+|------|-------|-------|-------|
+| `server.test.js` | 153 | 7 | MCP server integration |
+| `adapter.test.js` | 313 | 23 | Schema conversion |
+| `client.test.js` | 248 | 18 | HTTP client, retries |
+| `resource-adapter.test.js` | 209 | 13 | Caching, live/static |
+| `prompt-adapter.test.js` | 227 | 23 | Template interpolation |
+| `security.test.js` | 414 | 40 | Input validation |
+| `validate.test.js` | 212 | 33 | Validation utilities |
 
 ## Deployment
 
@@ -244,14 +243,18 @@ Centralised security validation utilities.
 
 ## Invariants
 
-| Check | Status |
-|-------|--------|
-| Every adapter imported by entry point | ✓ |
-| Each lib module has a test | ✓ |
-| No domain/tool logic in repo | ✓ |
-| Fatal env validation before connect (service key, org ID) | ✓ |
-| Graceful degradation for transient collector issues | ✓ |
-| Deps minimal (2 runtime, 1 dev) | ✓ |
+| Check | Status | Details |
+|-------|--------|---------|
+| Every adapter imported by entry point | ✓ pass | 5 lib modules, all imported at `server.js:20-24` |
+| Each lib module has a test | ✓ pass | 5 modules, 7 test files |
+| No domain/tool logic in repo | ✓ pass | All execution proxied to collector |
+| Fatal env validation before connect (service key, org ID) | ✓ pass | `server.js:42-52` |
+| Graceful degradation for transient collector issues | ✓ pass | Never exits pre-connect on collector failure |
+| Version aligned across package.json / manifest.json / server.js | ✓ pass | 1.2.0 everywhere |
+| Deps minimal (2 runtime, 1 dev) | ✓ pass | |
+| manifest.json `user_id` matches server behaviour | ⚠ warn | `manifest.json:62` marks it required, `server.js:60` treats it optional for org-scoped contexts |
+| Tool count consistent in docs | ⚠ warn | `manifest.json:5` and `README.md:49` say 130+, `README.md:10` says 83+ |
+| Checkout runnable as-is | ⚠ warn | `node_modules/` is empty; `npm install` needed before `npm test` or `deploy/bundle.sh` |
 
 ## Related
 
