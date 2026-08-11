@@ -133,9 +133,19 @@ Tools are served dynamically by the collector based on the agent ID. The QUOX or
 | **Monitoring** | metrics_query, alerts_manage | QUOX, METRICS |
 | **Memory** | memory_save, memory_search, memory_update, entity_note | All agents |
 | **Orchestration** | delegate_to_agent | QUOX only |
+| **Discord Pro** | discord_list_bindings, discord_diagnose, discord_bind_channel, discord_unbind_channel | QUOX, concierge |
 | **Plugin Tools** | n8n workflow triggers, custom integrations, domain-specific actions | Per plugin RBAC |
 
 Query the live list: `curl http://127.0.0.1:9848/api/v1/tools/list?agent_id=all`
+
+### Approval-gated tools
+
+Some collector tools (e.g. `discord_bind_channel`, `discord_unbind_channel`) are wrapped in an
+unconditional approval gate server-side. QuoxMCP does not special-case this: `POST
+/api/v1/tools/execute` returns whatever the collector decides (including a pending-approval body),
+and the tool-adapter forwards it to Claude as normal MCP content, exactly like any other tool
+result. There is no MCP-side bypass of the gate — QuoxMCP has no logic that could skip it, since
+all tool execution and RBAC enforcement happens in the collector, not here.
 
 ## MCP Resources
 
@@ -230,7 +240,8 @@ quoxmcp/
 │   ├── client.test.js           # Collector client tests with mocked HTTP
 │   ├── resource-adapter.test.js # Resource adapter tests
 │   ├── prompt-adapter.test.js   # Prompt adapter + template tests (23)
-│   └── security.test.js         # Security hardening tests (40)
+│   ├── security.test.js         # Security hardening tests (40)
+│   └── discord-tools.test.js    # Discord Pro tool exposure regression tests (5)
 ├── deploy/
 │   └── bundle.sh                # Tarball packaging for remote fleet deployment
 ├── manifest.json                # MCPB manifest for Claude Desktop installs
@@ -243,7 +254,7 @@ quoxmcp/
 ## Development
 
 ```bash
-# Run all tests (157 tests across 7 files)
+# Run all tests (162 tests across 8 files)
 npm test
 
 # Run tests in watch mode
