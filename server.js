@@ -171,6 +171,17 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// STDIO clients (claude -p, Claude Desktop) signal shutdown by closing this
+// server's stdin. Without an explicit exit here the Node event loop can stay
+// alive on a lingering keep-alive socket to the collector opened by a tool
+// call, so the process outlives the client. A parent `claude -p` that wait4()s
+// on this child then blocks after its final answer until an external SIGKILL,
+// never emitting its terminal result event. Exiting on stdin end closes that
+// gap. Proven 2026-08-14: seam loops that made an MCP tool call hung ~300s to
+// a duration-kill; no-tool-call runs exited in 7-10s.
+process.stdin.on('end', () => shutdown('stdin-end'));
+process.stdin.on('close', () => shutdown('stdin-close'));
+
 main().catch(err => {
   console.error(`[QuoxMCP] Fatal error: ${sanitizeError(err.message)}`);
   process.exit(1);
