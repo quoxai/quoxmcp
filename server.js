@@ -116,9 +116,13 @@ async function main() {
   // Fetch available tools for this agent from the collector
   let tools;
   try {
-    const data = await client.listTools(agentId);
+    const data = await client.listTools(agentId, orgId);
     tools = data.tools || [];
-    console.error(`[QuoxMCP] Fetched ${tools.length} tools for agent ${agentId}`);
+    const connectorCount = tools.filter((t) => t && typeof t.provider === 'string' && t.provider.startsWith('connector:')).length;
+    // Name the connector count explicitly: a tool list that is silently
+    // core-only is exactly the failure GRIPE hit on 2026-08-23, and it is
+    // invisible in a bare total.
+    console.error(`[QuoxMCP] Fetched ${tools.length} tools for agent ${agentId} (${connectorCount} connector, org=${orgId || 'none'})`);
   } catch (err) {
     // Do NOT exit here. Exiting before server.connect() leaves the parent Claude CLI
     // stuck "connecting" with zero tools for the WHOLE session on any transient

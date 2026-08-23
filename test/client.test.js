@@ -48,6 +48,37 @@ describe('CollectorClient', () => {
       );
     });
 
+    // The collector only merges an org's CONNECTOR tools (github_create_issue
+    // and friends) when the tool-list request names the org. Omitting it is
+    // why GRIPE, driven through the MCP path, reported "no github_create_issue
+    // tool is connected for this org" on 2026-08-23 while the connector bridge
+    // was resolving that exact tool for that exact org.
+    it('passes org_id so connector tools are merged', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ tools: [], agent: 'gripe', count: 0 })
+      });
+
+      await client.listTools('gripe', 'org-abc');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:9848/api/v1/tools/list?agent_id=gripe&org_id=org-abc',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('omits org_id entirely when there is no org', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ tools: [], agent: 'quox', count: 0 })
+      });
+
+      await client.listTools('quox', '');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:9848/api/v1/tools/list?agent_id=quox',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
     it('throws on HTTP error', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
