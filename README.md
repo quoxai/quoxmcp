@@ -132,11 +132,30 @@ Tools are served dynamically by the collector based on the agent ID. The QUOX or
 | **Security** | security_audit, ssl_certificates | QUOX, SENTINEL |
 | **Monitoring** | metrics_query, alerts_manage | QUOX, METRICS |
 | **Memory** | memory_save, memory_search, memory_update, entity_note | All agents |
+| **Knowledge Brain** | quoxbrain_search | All agents (`KNOWLEDGE_TOOLS`, `services/collector/lib/agentTools.js`) |
 | **Orchestration** | delegate_to_agent | QUOX only |
 | **Discord Pro** | discord_list_bindings, discord_diagnose, discord_bind_channel, discord_unbind_channel | QUOX, concierge |
 | **Plugin Tools** | n8n workflow triggers, custom integrations, domain-specific actions | Per plugin RBAC |
 
 Query the live list: `curl http://127.0.0.1:9848/api/v1/tools/list?agent_id=all`
+
+### Knowledge Brain search (BRAIN2-PRODUCT P3b)
+
+QuoxMCP has no hand-registered tools — every tool Claude sees here is whatever the collector's
+`GET /api/v1/tools/list` returns for `agent_id`, converted to a Zod schema and passed straight
+through by `lib/tool-adapter.js`. There is no separate MCP-side tool definition to add or
+maintain. `quoxbrain_search` (org knowledge-brain search: decisions, docs, past conversations,
+governance, evidence — params `{ query: string, limit?: number }`, capped at 20 results) is
+already in the `KNOWLEDGE_TOOLS` set spread onto every agent's tool list in
+`services/collector/lib/agentTools.js`, so it is already reachable through this passthrough for
+any agent an external Claude session authenticates as — no quoxmcp changes needed. Verified live
+against the running collector (2026-08-25):
+
+```bash
+curl -H "X-Service-Key: $INTERNAL_SERVICE_KEY" \
+  "http://127.0.0.1:9848/api/v1/tools/list?agent_id=quox" | jq '.tools[] | select(.name=="quoxbrain_search")'
+# -> present, alongside 93 other quox tools (94 total)
+```
 
 ### Approval-gated tools
 
