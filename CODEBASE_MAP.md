@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-11 by /codebase-mirror -->
+<!-- Last verified: 2026-09-02 by /codebase-mirror -->
 
 # quoxmcp — Codebase Map
 
@@ -8,13 +8,13 @@
 
 | Metric | Value |
 |--------|-------|
-| Source lines | 845 (server.js: 177, lib/: 668) |
-| Test lines | 1776 |
-| Test cases | 157 (across 7 files) |
+| Source lines | 870 (server.js: 192, lib/: 678) |
+| Test lines | 1987 |
+| Test cases | 164 (across 8 files) |
 | Lib modules | 5 |
 | Runtime deps | 2 (`@modelcontextprotocol/sdk`, `zod`) |
 | Dev deps | 1 (`vitest`) |
-| Tools / resources / prompts | dynamic (fetched from collector at startup) |
+| Tools / resources / prompts | dynamic (fetched from collector at startup; ~94 tools live-verified 2026-08 incl. Discord Pro + quoxbrain_search) |
 
 ## Package
 
@@ -33,28 +33,28 @@ Claude CLI ──STDIO──► QuoxMCP ──HTTP──► QuoxCORE Collector (
                     stdin/stdout                │
                          ▼                      ▼
                    Protocol Adapter        Infrastructure
-                   (no tool logic)         (SSH, Docker, Proxmox, etc.)
+                   (no tool logic)         (SSH, Docker, Proxmox, Discord Pro, etc.)
 ```
 
-QuoxMCP is a **thin protocol bridge**: tools, resources, and prompts are fetched from the collector API at startup. No domain logic lives here; all execution goes through the collector which handles RBAC, bastion routing, and audit trails. Tool/resource/prompt counts are runtime-dynamic.
+QuoxMCP is a **thin protocol bridge**: tools, resources, and prompts are fetched from the collector API at startup. No domain logic lives here; all execution goes through the collector, which handles RBAC, bastion routing, approval gates, and audit trails. Tool/resource/prompt counts are runtime-dynamic. Discord Pro tools (QDIS-NEXT ph10) flow through the same generic adapter, including the collector's pending-approval bodies for the mutating ones, forwarded untouched.
 
-## Startup Flow (`server.js:104-163`)
+## Startup Flow (`server.js:104-168`)
 
 1. Validate env (fatal on missing): `QUOX_SERVICE_KEY`/`INTERNAL_SERVICE_KEY`, `QUOX_ORG_ID`. Warn (non-fatal) if `QUOX_USER_ID` missing (org-scoped service contexts valid). Validate `QUOX_AGENT_ID` (safe-ID pattern), `QUOX_COLLECTOR_URL` (valid http/https).
 2. Sanitize `QUOX_SESSION_ID` if non-conforming (replaces illegal chars instead of fatal-exit to support Matrix room IDs).
 3. Create `CollectorClient` with service-key auth.
-4. `client.listTools(agentId)` → `GET /api/v1/tools/list` (degrade to 0 tools if unreachable, do NOT exit).
+4. `client.listTools(agentId, orgId)` → `GET /api/v1/tools/list?agent_id=...&org_id=...` (org_id merges the org's connector tools onto core tools; degrade to 0 tools if unreachable, do NOT exit). Logs connector-tool count separately.
 5. `client.listResources()` → `GET /api/v1/resources/list`.
 6. `client.listPrompts()` → `GET /api/v1/prompts/list`.
 7. Register via adapters: `registerTools` → `registerResources` → `registerPrompts`.
 8. Connect via `StdioServerTransport` to Claude CLI.
-9. Graceful shutdown on SIGTERM/SIGINT; EPIPE handling for zombie prevention.
+9. Shutdown on SIGTERM/SIGINT, on stdin end/close (so `claude -p` parents don't hang on a lingering keep-alive socket), and EPIPE on stdout (zombie prevention).
 
 ## File Tree
 
 ```
 quoxmcp/
-├── server.js                    # Entry point (STDIO transport, env validation)
+├── server.js                    # Entry point (STDIO transport, env validation, shutdown)
 ├── lib/
 │   ├── collector-client.js      # HTTP client for collector API
 │   ├── tool-adapter.js          # JSON Schema → Zod + MCP tool registration
@@ -65,6 +65,7 @@ quoxmcp/
 │   ├── server.test.js           # Integration tests
 │   ├── adapter.test.js          # Schema conversion tests
 │   ├── client.test.js           # HTTP client tests
+│   ├── discord-tools.test.js    # Discord Pro tool shapes through generic adapter
 │   ├── resource-adapter.test.js # Resource caching tests
 │   ├── prompt-adapter.test.js   # Template tests
 │   ├── security.test.js         # Security hardening tests
@@ -87,14 +88,14 @@ Build artifacts (`dist/quoxmcp.mcpb`, MCPB staging) are gitignored and not prese
 | Resources | `resource-adapter.js` → `registerResources(server, resources, client)` | Each resource → `server.resource(...)` with TTL cache (30s, 100 max). |
 | Prompts | `prompt-adapter.js` → `registerPrompts(server, prompts)` | Each prompt → `server.prompt(name, argsShape, handler)` with mustache templating. |
 
-To expose a new tool/resource/prompt: add it in the **collector** (this repo needs no change).
+To expose a new tool/resource/prompt: add it in the **collector** (this repo needs no change). Proven by the Discord Pro exposure: zero Discord-specific code here.
 
 ## Authoritative Files
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `server.js` | Entry point, env validation, MCP server setup | 177 |
-| `lib/collector-client.js` | HTTP client to collector API (retries, auth) | 127 |
+| `server.js` | Entry point, env validation, MCP server setup, shutdown | 192 |
+| `lib/collector-client.js` | HTTP client to collector API (retries, auth, org_id) | 137 |
 | `lib/tool-adapter.js` | Collector tools → MCP tools (JSON Schema → Zod) | 176 |
 | `lib/resource-adapter.js` | Resource registration + caching | 121 |
 | `lib/prompt-adapter.js` | Prompt registration + templating | 113 |
@@ -112,7 +113,7 @@ HTTP client for QuoxCORE collector API.
 - `opts.serviceKey` — auth header value
 
 **Methods:**
-- `listTools(agentId)` → `GET /api/v1/tools/list?agent_id=...`
+- `listTools(agentId, orgId)` → `GET /api/v1/tools/list?agent_id=...&org_id=...` (orgId merges org connector tools; omitting it yields core tools only)
 - `listResources()` → `GET /api/v1/resources/list`
 - `listPrompts()` → `GET /api/v1/prompts/list`
 - `executeTool(name, input, agentId, sessionId, orgId, userId, authToken)` → `POST /api/v1/tools/execute`
@@ -128,7 +129,7 @@ Converts collector tool definitions to MCP registrations.
 - `jsonSchemaToZodShape(properties, required)` — JSON Schema → Zod shape
 - `jsonSchemaToZodItem(items)` — array item schema conversion
 
-**Supported types:** string, number/integer, boolean, array (recursive), object (recursive), enum.
+**Supported types:** string, number/integer, boolean, array (recursive), object (recursive), enum, defaults.
 
 ### resource-adapter.js
 
@@ -183,7 +184,7 @@ Centralised security validation utilities.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `QUOX_SERVICE_KEY` | Yes | — | Collector auth (or `INTERNAL_SERVICE_KEY`) |
-| `QUOX_ORG_ID` | Yes | — | Org ID for multi-tenant audit |
+| `QUOX_ORG_ID` | Yes | — | Org ID; also merges the org's connector tools into the tool list |
 | `QUOX_USER_ID` | No | — | User ID (warn if missing, org-scoped service contexts valid) |
 | `QUOX_AGENT_ID` | No | `quox` | Agent identity for RBAC |
 | `QUOX_SESSION_ID` | No | auto UUID | Session identifier (sanitized if non-conforming) |
@@ -195,6 +196,7 @@ Centralised security validation utilities.
 - **Graceful degradation:** If `listTools()` fails at startup, connect with 0 tools instead of fatal-exit (session self-heals on next turn).
 - **Session ID sanitization:** Non-conforming IDs (e.g., Matrix room IDs with `!` and `:`) are sanitized instead of causing fatal-exit.
 - **Org-scoped contexts:** Missing `QUOX_USER_ID` is warned, not fatal (appservice/agent invokes are legitimate user-less contexts).
+- **STDIO client shutdown:** Exits on stdin end/close so a parent `claude -p` never blocks on a lingering keep-alive socket after its final answer (proven 2026-08-14).
 
 ## Test Coverage
 
@@ -202,7 +204,8 @@ Centralised security validation utilities.
 |------|-------|-------|-------|
 | `server.test.js` | 153 | 7 | MCP server integration |
 | `adapter.test.js` | 313 | 23 | Schema conversion |
-| `client.test.js` | 248 | 18 | HTTP client, retries |
+| `client.test.js` | 279 | 20 | HTTP client, retries, org_id |
+| `discord-tools.test.js` | 180 | 5 | Discord Pro tool shapes, approval-gate passthrough, honest errors |
 | `resource-adapter.test.js` | 209 | 13 | Caching, live/static |
 | `prompt-adapter.test.js` | 227 | 23 | Template interpolation |
 | `security.test.js` | 414 | 40 | Input validation |
@@ -246,18 +249,19 @@ Centralised security validation utilities.
 | Check | Status | Details |
 |-------|--------|---------|
 | Every adapter imported by entry point | ✓ pass | 5 lib modules, all imported at `server.js:20-24` |
-| Each lib module has a test | ✓ pass | 5 modules, 7 test files |
-| No domain/tool logic in repo | ✓ pass | All execution proxied to collector |
+| Each lib module has a test | ✓ pass | 5 modules, 8 test files |
+| No domain/tool logic in repo | ✓ pass | All execution proxied to collector; Discord Pro exposure needed zero code here |
 | Fatal env validation before connect (service key, org ID) | ✓ pass | `server.js:42-52` |
 | Graceful degradation for transient collector issues | ✓ pass | Never exits pre-connect on collector failure |
 | Version aligned across package.json / manifest.json / server.js | ✓ pass | 1.2.0 everywhere |
 | Deps minimal (2 runtime, 1 dev) | ✓ pass | |
 | manifest.json `user_id` matches server behaviour | ⚠ warn | `manifest.json:62` marks it required, `server.js:60` treats it optional for org-scoped contexts |
-| Tool count consistent in docs | ⚠ warn | `manifest.json:5` and `README.md:49` say 130+, `README.md:10` says 83+ |
+| Tool count consistent in docs | ⚠ warn | `manifest.json:5` and `README.md:49` say 130+, `README.md:10` says 83+, `README.md:157` says 94 total (live-verified) |
 | Checkout runnable as-is | ⚠ warn | `node_modules/` is empty; `npm install` needed before `npm test` or `deploy/bundle.sh` |
 
 ## Related
 
-- **QuoxCORE collector** — provides all tools/resources/prompts
+- **QuoxCORE collector** — provides all tools/resources/prompts (incl. `discordProTools.js` in quox-dashboard)
 - **quox-dashboard** — UI for QuoxCORE
 - **quoxagent** — Go agent that can host QuoxMCP
+- **quox-discord-pro** — Discord gateway daemon whose tools are exposed through this bridge
