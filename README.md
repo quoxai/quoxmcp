@@ -157,6 +157,42 @@ curl -H "X-Service-Key: $INTERNAL_SERVICE_KEY" \
 # -> present, alongside 93 other quox tools (94 total)
 ```
 
+### X (Twitter) native posting tools (X-PLUGIN COMMANDABLE)
+
+`x_post`, `x_thread`, `x_delete`, and `x_budget_status` are native collector tools
+(`services/collector/lib/xTools.js`) exposed to the `xtwitter` agent. Like every other tool,
+QuoxMCP has no special-case code for them — they are reachable through the same generic
+passthrough the moment the collector's `/api/v1/tools/list` includes them, confirmed live
+against the running collector (2026-09-12):
+
+```bash
+curl -H "X-Service-Key: $QUOX_SERVICE_KEY" \
+  "http://127.0.0.1:9848/api/v1/tools/list?agent_id=xtwitter" | jq '.tools[].name'
+# -> x_post, x_thread, x_delete, x_budget_status all present (no org_id needed —
+#    these are native tools, not connector-merged)
+```
+
+**Governed-posting semantics — read before calling `x_post`/`x_thread`/`x_delete` via MCP:**
+none of the three mutating tools ever posts, threads, or deletes directly. Each files an owner
+approval card in Inbox-Q and returns immediately with `status: "awaiting_approval"` — there is
+no tweet id in that response because nothing has been published yet. An MCP caller must not
+poll-spam the collector expecting a tweet id to appear; the action only completes once the owner
+approves the card out-of-band. `x_budget_status` is the one read-only tool in the set (posting
+budget usage against the free-tier caps) and returns its result immediately, no approval gate.
+
+**Known gap — `twitter_verify_credentials` is NOT currently reachable for the `xtwitter` agent.**
+This is a connector-family tool (`services/collector/lib/connectors/types/twitter.js`), merged in
+only when `getConnectorFamiliesForAgent()` grants the agent the `twitter` connector family. That
+map (`CONNECTOR_FAMILIES` in `services/collector/lib/agentTools.js`) still keys the grant to an
+agent literally named `twitter`, but the live agent was renamed to `xtwitter` (see the X-PLUGIN P1
+comment in `src/config/agentRegistry.js`), so `getConnectorFamiliesForAgent('xtwitter')` returns
+`[]` and the tool never merges in — confirmed live with
+`agent_id=xtwitter&org_id=__system__` returning the four native tools but not
+`twitter_verify_credentials`. This is a quox-dashboard-side stale map key, not a QuoxMCP bridge
+limitation: QuoxMCP would relay the tool the instant the collector's list included it. Fix belongs
+in `quox-dashboard/services/collector/lib/agentTools.js`'s `CONNECTOR_FAMILIES` map, out of scope
+for this repo.
+
 ### Approval-gated tools
 
 Some collector tools (e.g. `discord_bind_channel`, `discord_unbind_channel`) are wrapped in an
@@ -273,7 +309,7 @@ quoxmcp/
 ## Development
 
 ```bash
-# Run all tests (162 tests across 8 files)
+# Run all tests (168 tests across 9 files)
 npm test
 
 # Run tests in watch mode
