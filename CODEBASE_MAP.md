@@ -14,7 +14,7 @@
 | Lib modules | 5 |
 | Runtime deps | 2 (`@modelcontextprotocol/sdk`, `zod`) |
 | Dev deps | 1 (`vitest`) |
-| Tools / resources / prompts | dynamic (fetched from collector at startup; ~94 tools live-verified 2026-08 incl. Discord Pro + quoxbrain_search) |
+| Tools / resources / prompts | dynamic (fetched from collector at startup; agent- and org-scoped, no single flat count, 320 distinct tool names across 44 agent roles per the 2026-09-16 parity audit) / 5 / 4 |
 
 ## Package
 
@@ -256,8 +256,8 @@ Centralised security validation utilities.
 | Version aligned across package.json / manifest.json / server.js | ✓ pass | 1.2.0 everywhere |
 | Deps minimal (2 runtime, 1 dev) | ✓ pass | |
 | manifest.json `user_id` matches server behaviour | ⚠ warn | `manifest.json:62` marks it required, `server.js:60` treats it optional for org-scoped contexts |
-| Tool count consistent in docs | ⚠ warn | `manifest.json:5` and `README.md:49` say 130+, `README.md:10` says 83+, `README.md:157` says 94 total (live-verified) |
-| Checkout runnable as-is | ⚠ warn | `node_modules/` is empty; `npm install` needed before `npm test` or `deploy/bundle.sh` |
+| Tool count consistent in docs | ✓ pass | GTM-A2 (2026-09-16): manifest.json and README no longer quote a fixed number; both state the count is agent- and org-scoped and cite the 320-distinct/44-agent-role union from the parity audit |
+| Checkout runnable as-is | ✓ pass | `node_modules/` has 123 packages installed; `npm test` and `deploy/bundle.sh` run without a prior `npm install` |
 
 ## Related
 

@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "quoxmcp",
   "version": "1.2.0",
-  "description": "QuoxMCP — bridges Claude Desktop to your QuoxCORE collector. Surfaces 130+ infrastructure tools, 5 resources, and 4 operational prompts via MCP.",
+  "description": "QuoxMCP — bridges Claude Desktop to your QuoxCORE collector. Surfaces its infrastructure tools (scoped per agent and org), 5 resources, and 4 operational prompts via MCP.",
   "author": {
     "name": "Quox"
   },

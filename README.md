@@ -7,7 +7,7 @@ MCP (Model Context Protocol) server that bridges Claude CLI to QuoxCORE infrastr
 ```
                           QuoxCORE Collector (port 9848)
                          ┌────────────────────────────────┐
-                         │  83+ dynamic tools (RBAC)      │
+                         │  tools (per-agent/org scoped)  │
                          │  5 MCP Resources (read-only)   │
                          │  4 MCP Prompts (workflows)     │
                          │  SSH Bastion routing            │
@@ -46,7 +46,7 @@ Click **Install**, restart Claude Desktop, and `quox` appears in the tools menu.
 
 ### Verify
 
-In Claude Desktop, click the 🔌 icon and confirm `quox` is listed with 130+ tools. Try a prompt like *"run a fleet health check"* — it should invoke the `fleet-health` operational prompt.
+In Claude Desktop, click the 🔌 icon and confirm `quox` is listed with its tools (the count is agent- and org-scoped, see Available Tools below, not a fixed number). Try a prompt like *"run a fleet health check"* — it should invoke the `fleet-health` operational prompt.
 
 If install fails, check `~/Library/Logs/Claude/mcp-server-quoxmcp.log` (macOS) or `%APPDATA%\Claude\Logs\` (Windows).
 
@@ -94,10 +94,12 @@ QUOX_AGENT_ID=quox QUOX_COLLECTOR_URL=http://127.0.0.1:9848 timeout 5 node serve
 Expected output:
 ```
 [QuoxMCP] Starting — agent=quox, collector=http://127.0.0.1:9848
-[QuoxMCP] Fetched 130 tools for agent quox
-[QuoxMCP] Registered 130 tools, 5 resources, 4 prompts for agent quox
-[QuoxMCP] Connected — serving 130 tools, 5 resources, 4 prompts via STDIO
+[QuoxMCP] Fetched N tools for agent quox
+[QuoxMCP] Registered N tools, 5 resources, 4 prompts for agent quox
+[QuoxMCP] Connected — serving N tools, 5 resources, 4 prompts via STDIO
 ```
+
+`N` varies by agent and org entitlements, it is never a fixed number, see Available Tools below.
 
 ## Environment Variables
 
@@ -121,7 +123,7 @@ Expected output:
 
 ## Available Tools
 
-Tools are served dynamically by the collector based on the agent ID. The QUOX orchestrator agent has access to all tools; specialist agents get subsets. With plugins enabled, the total exceeds 83 tools.
+Tools are served dynamically by the collector, scoped per agent ID and per org (RBAC plus connector merge). There is no single flat tool count: the QUOX orchestrator agent sees the most (100 tools, one org, at last check); specialist agents get smaller subsets (roughly 15-35 each). Across all 44 agent roles defined in `agentTools.js`, the union is 320 distinct tool names, as of the 2026-09-16 parity audit.
 
 | Category | Tools | Agents |
 |----------|-------|--------|
@@ -154,7 +156,7 @@ against the running collector (2026-08-25):
 ```bash
 curl -H "X-Service-Key: $INTERNAL_SERVICE_KEY" \
   "http://127.0.0.1:9848/api/v1/tools/list?agent_id=quox" | jq '.tools[] | select(.name=="quoxbrain_search")'
-# -> present, alongside 93 other quox tools (94 total)
+# -> present, alongside the rest of the quox agent's tool set (agent-scoped count, see Available Tools above)
 ```
 
 ### X (Twitter) native posting tools (X-PLUGIN COMMANDABLE)
