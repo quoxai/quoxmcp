@@ -37,7 +37,7 @@ Download `quoxmcp.mcpb` from [the latest release](https://github.com/quoxai/quox
 
 | Field | What to enter |
 |-------|--------------|
-| **Collector URL** | Base URL of your QuoxCORE collector — e.g. `http://192.168.88.126:9848` |
+| **Collector URL** | Base URL of your QuoxCORE collector — e.g. `http://192.0.2.126:9848` |
 | **Service Key** | `INTERNAL_SERVICE_KEY` from your QuoxCORE `.env` (or dashboard settings) |
 
 Click **Install**, restart Claude Desktop, and `quox` appears in the tools menu. That's the whole setup.

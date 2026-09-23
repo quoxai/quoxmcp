@@ -406,7 +406,7 @@ describe('Error sanitization', () => {
   });
 
   it('strips private network ranges', () => {
-    expect(sanitizeError('host 192.168.88.247')).toContain('[internal-ip]');
+    expect(sanitizeError('host 192.168.1.100')).toContain('[internal-ip]');
     expect(sanitizeError('host 172.16.0.1')).toContain('[internal-ip]');
     expect(sanitizeError('host 172.31.255.255')).toContain('[internal-ip]');
     expect(sanitizeError('host 10.99.1.2')).toContain('[internal-ip]');

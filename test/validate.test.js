@@ -144,8 +144,8 @@ describe('validate', () => {
     })
 
     it('strips 192.168.x.x addresses', () => {
-      const sanitized = sanitizeError('Failed to connect to 192.168.88.247')
-      expect(sanitized).not.toContain('192.168.88.247')
+      const sanitized = sanitizeError('Failed to connect to 192.168.1.100')
+      expect(sanitized).not.toContain('192.168.1.100')
     })
 
     it('strips file paths', () => {
