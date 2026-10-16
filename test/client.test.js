@@ -186,6 +186,38 @@ describe('CollectorClient', () => {
     });
   });
 
+  // #4: non-idempotent POSTs (tool execution) must NOT be retried. A retry after a
+  // lost response — when the collector already ran the tool — duplicates the mutation.
+  describe('idempotency (#4): executeTool POST is not retried', () => {
+    it('does NOT retry the execute POST on a network failure', async () => {
+      const retryClient = new CollectorClient('http://127.0.0.1:9848', { retries: 2, timeout: 5000 });
+      mockFetch.mockRejectedValue(new Error('ECONNRESET'));
+      await expect(
+        retryClient.executeTool('ssh_exec', { host: 'h1' }, 'quox', 'sess-1')
+      ).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT retry the execute POST on a 5xx response', async () => {
+      const retryClient = new CollectorClient('http://127.0.0.1:9848', { retries: 2, timeout: 5000 });
+      mockFetch.mockResolvedValue({ ok: false, status: 502, text: () => Promise.resolve('bad gateway') });
+      await expect(
+        retryClient.executeTool('ssh_exec', { host: 'h1' }, 'quox', 'sess-1')
+      ).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('still retries idempotent GET (listTools) when configured', async () => {
+      const retryClient = new CollectorClient('http://127.0.0.1:9848', { retries: 2, timeout: 5000 });
+      mockFetch
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ tools: [], count: 0 }) });
+      const r = await retryClient.listTools('quox');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(r.count).toBe(0);
+    });
+  });
+
   describe('exponential backoff', () => {
     it('uses increasing delays between retries', async () => {
       const retryClient = new CollectorClient('http://127.0.0.1:9848', { retries: 2, timeout: 5000 });
