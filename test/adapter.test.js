@@ -311,3 +311,58 @@ describe('registerTools', () => {
     stderrSpy.mockRestore();
   });
 });
+
+import { z } from 'zod';
+
+describe('jsonSchemaToZodShape constraint parity', () => {
+  const obj = (props, req = ['v']) => z.object(jsonSchemaToZodShape(props, req));
+
+  it('integer rejects non-integers', () => {
+    const s = obj({ v: { type: 'integer' } });
+    expect(s.safeParse({ v: 3 }).success).toBe(true);
+    expect(s.safeParse({ v: 3.5 }).success).toBe(false);
+  });
+
+  it('number enforces minimum/maximum and exclusive bounds', () => {
+    const s = obj({ v: { type: 'number', minimum: 1, maximum: 10 } });
+    expect(s.safeParse({ v: 5 }).success).toBe(true);
+    expect(s.safeParse({ v: 0 }).success).toBe(false);
+    expect(s.safeParse({ v: 11 }).success).toBe(false);
+    const e = obj({ v: { type: 'number', exclusiveMinimum: 1, exclusiveMaximum: 10 } });
+    expect(e.safeParse({ v: 5 }).success).toBe(true);
+    expect(e.safeParse({ v: 1 }).success).toBe(false);
+    expect(e.safeParse({ v: 10 }).success).toBe(false);
+  });
+
+  it('string enforces pattern, minLength, maxLength', () => {
+    const s = obj({ v: { type: 'string', pattern: '^[a-z]+$', minLength: 2, maxLength: 4 } });
+    expect(s.safeParse({ v: 'abc' }).success).toBe(true);
+    expect(s.safeParse({ v: 'ABC' }).success).toBe(false);
+    expect(s.safeParse({ v: 'a' }).success).toBe(false);
+    expect(s.safeParse({ v: 'abcde' }).success).toBe(false);
+  });
+
+  it('enum rejects values outside the set (strings and mixed)', () => {
+    const s = obj({ v: { type: 'string', enum: ['a', 'b'] } });
+    expect(s.safeParse({ v: 'a' }).success).toBe(true);
+    expect(s.safeParse({ v: 'c' }).success).toBe(false);
+    const n = obj({ v: { type: 'integer', enum: [1, 2] } });
+    expect(n.safeParse({ v: 2 }).success).toBe(true);
+    expect(n.safeParse({ v: 3 }).success).toBe(false);
+  });
+
+  it('nullable accepts null, non-nullable rejects it', () => {
+    const s = obj({ v: { type: 'string', nullable: true } });
+    expect(s.safeParse({ v: null }).success).toBe(true);
+    const t = obj({ v: { type: 'string' } });
+    expect(t.safeParse({ v: null }).success).toBe(false);
+  });
+
+  it('array enforces minItems/maxItems and item constraints', () => {
+    const s = obj({ v: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'integer' } } });
+    expect(s.safeParse({ v: [1, 2] }).success).toBe(true);
+    expect(s.safeParse({ v: [1] }).success).toBe(false);
+    expect(s.safeParse({ v: [1, 2, 3, 4] }).success).toBe(false);
+    expect(s.safeParse({ v: [1, 2.5] }).success).toBe(false);
+  });
+});
