@@ -19,6 +19,7 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { CollectorClient } = require('./lib/collector-client');
 const { registerTools } = require('./lib/tool-adapter');
+const { startToolRediscovery } = require('./lib/tool-discovery');
 const { registerResources } = require('./lib/resource-adapter');
 const { registerPrompts } = require('./lib/prompt-adapter');
 const { isValidId, validateUrl, sanitizeError } = require('./lib/validate');
@@ -115,6 +116,7 @@ async function main() {
 
   // Fetch available tools for this agent from the collector
   let tools;
+  let initialLoadFailed = false;
   try {
     const data = await client.listTools(agentId, orgId);
     tools = data.tools || [];
@@ -128,9 +130,11 @@ async function main() {
     // stuck "connecting" with zero tools for the WHOLE session on any transient
     // collector condition (not-yet-listening at spawn time, a stacked auth-service
     // timeout, a 5xx). Degrade gracefully: connect with an empty tool set so the
-    // session stays alive and self-heals on the next turn instead of hard-hanging.
+    // session stays alive, then retry on a bounded backoff (startToolRediscovery
+    // below) and register tools when they appear.
     console.error(`[QuoxMCP] Failed to fetch tools from collector: ${sanitizeError(err.message)} — connecting with 0 tools (degraded).`);
     tools = [];
+    initialLoadFailed = true;
   }
 
   if (tools.length === 0) {
@@ -160,9 +164,23 @@ async function main() {
     console.error(`[QuoxMCP] Prompts unavailable: ${sanitizeError(err.message)}`);
   }
 
+  // Declare the tools capability + handlers even with zero tools, so tools
+  // discovered later can be registered after connect (the SDK otherwise throws
+  // 'Cannot register capabilities after connecting').
+  server.setToolRequestHandlers();
+
   // Connect via STDIO transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  // Bounded rediscovery after a failed initial load. Registering tools on the
+  // now-connected server makes the SDK send notifications/tools/list_changed.
+  if (initialLoadFailed) {
+    startToolRediscovery({
+      listTools: () => client.listTools(agentId, orgId),
+      onTools: (found) => registerTools(server, found, client, { agentId, sessionId, orgId, userId, authToken })
+    });
+  }
 
   console.error(`[QuoxMCP] Connected — serving ${tools.length} tools, ${resCount} resources, ${promptCount} prompts via STDIO`);
 }

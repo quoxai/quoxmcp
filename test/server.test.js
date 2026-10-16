@@ -151,3 +151,59 @@ describe('MCP Server Components', () => {
     });
   });
 });
+
+describe('Tool rediscovery after failed initial load (#6)', () => {
+  it('starts empty, retries, registers tools and notifies list_changed without crashing', async () => {
+    const { McpServer } = await import('@modelcontextprotocol/sdk/server/mcp.js');
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+    const { ToolListChangedNotificationSchema } = await import('@modelcontextprotocol/sdk/types.js');
+    const { startToolRediscovery } = await import('../lib/tool-discovery.js');
+    const { registerTools } = await import('../lib/tool-adapter.js');
+
+    const server = new McpServer({ name: 'test', version: '1.0.0' });
+    const calls = [];
+    const client = {
+      listTools: vi.fn(async () => {
+        calls.push(1);
+        if (calls.length < 3) throw new Error('collector down');
+        return { tools: [{ name: 'fleet_status', description: 'Fleet', input_schema: { properties: {} } }] };
+      }),
+      executeTool: vi.fn()
+    };
+    const ctx = { agentId: 'quox', sessionId: 's', orgId: 'o', userId: '', authToken: '' };
+
+    // Boot degraded: zero tools, but handlers must exist so late registration works.
+    server.setToolRequestHandlers();
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const mcpClient = new Client({ name: 'c', version: '1' });
+    let changed = 0;
+    mcpClient.setNotificationHandler(ToolListChangedNotificationSchema, () => { changed++; });
+    await mcpClient.connect(ct);
+    expect((await mcpClient.listTools()).tools).toHaveLength(0);
+
+    const done = new Promise((resolve) => {
+      startToolRediscovery({
+        listTools: () => client.listTools('quox', 'o'),
+        onTools: (tools) => { registerTools(server, tools, client, ctx); resolve(); },
+        delaysMs: [1, 1, 1, 1]
+      });
+    });
+    await done;
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(client.listTools).toHaveBeenCalledTimes(3);
+    expect((await mcpClient.listTools()).tools.map((t) => t.name)).toEqual(['fleet_status']);
+    expect(changed).toBeGreaterThan(0);
+  });
+
+  it('gives up after bounded attempts without throwing', async () => {
+    const { startToolRediscovery } = await import('../lib/tool-discovery.js');
+    const listTools = vi.fn(async () => { throw new Error('down'); });
+    const onTools = vi.fn();
+    await startToolRediscovery({ listTools, onTools, delaysMs: [1, 1] }).finished;
+    expect(listTools).toHaveBeenCalledTimes(2);
+    expect(onTools).not.toHaveBeenCalled();
+  });
+});
