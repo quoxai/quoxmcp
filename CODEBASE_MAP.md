@@ -18,7 +18,7 @@
 
 ## Package
 
-- **Name:** `@quox/mcp` v1.2.0
+- **Name:** `@quox/mcp` v1.3.0
 - **Main / bin:** `server.js` (CLI bin: `quoxmcp`)
 - **License:** BUSL-1.1
 - **Node:** >=20.0.0
@@ -253,7 +253,7 @@ Centralised security validation utilities.
 | No domain/tool logic in repo | ✓ pass | All execution proxied to collector; Discord Pro exposure needed zero code here |
 | Fatal env validation before connect (service key, org ID) | ✓ pass | `server.js:42-52` |
 | Graceful degradation for transient collector issues | ✓ pass | Never exits pre-connect on collector failure |
-| Version aligned across package.json / manifest.json / server.js | ✓ pass | 1.2.0 everywhere |
+| Version aligned across package.json / manifest.json / server.js | ✓ pass | 1.3.0 everywhere |
 | Deps minimal (2 runtime, 1 dev) | ✓ pass | |
 | manifest.json `user_id` matches server behaviour | ⚠ warn | `manifest.json:62` marks it required, `server.js:60` treats it optional for org-scoped contexts |
 | Tool count consistent in docs | ✓ pass | GTM-A2 (2026-09-16): manifest.json and README no longer quote a fixed number; both state the count is agent- and org-scoped and cite the 320-distinct/44-agent-role union from the parity audit |

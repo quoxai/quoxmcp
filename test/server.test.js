@@ -207,3 +207,21 @@ describe('Tool rediscovery after failed initial load (#6)', () => {
     expect(onTools).not.toHaveBeenCalled();
   });
 });
+
+describe('Version consistency (#9)', () => {
+  it('package.json, manifest.json and server.js versions match', async () => {
+    const fs = await import('node:fs');
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const man = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+    const srv = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+    expect(man.version).toBe(pkg.version);
+    expect(srv).toContain(`version: '${pkg.version}'`);
+  });
+
+  it('manifest marks user_id optional and org_id required (matches server.js)', async () => {
+    const fs = await import('node:fs');
+    const man = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+    expect(man.user_config.user_id.required).toBe(false);
+    expect(man.user_config.org_id.required).toBe(true);
+  });
+});
