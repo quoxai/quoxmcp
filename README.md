@@ -1,5 +1,7 @@
 # QuoxMCP
 
+![Quox project overview](docs/assets/readme-hero.png)
+
 MCP (Model Context Protocol) server that bridges Claude CLI to QuoxCORE infrastructure tools, resources, and operational prompts. QuoxMCP is a thin protocol adapter — all tool execution, resource serving, and prompt logic calls back to the QuoxCORE collector API. No tool logic lives here.
 
 ## Architecture
