@@ -264,6 +264,25 @@ describe('registerTools', () => {
     stderrSpy.mockRestore();
   });
 
+  it('a held (pending approval) result logs HELD, not OK, and is not an MCP error', async () => {
+    const { registerTools } = await import('../lib/tool-adapter.js');
+    let capturedHandler;
+    const mockServer = { tool: (name, desc, shape, handler) => { capturedHandler = handler; } };
+    const mockClient = { executeTool: vi.fn().mockResolvedValue({ success: false, pending: true, approvalId: 'apr_7', message: 'Requires approval' }) };
+    registerTools(mockServer, [
+      { name: 'held_tool', description: 'Test', input_schema: { properties: {}, required: [] } }
+    ], mockClient, { agentId: 'quox', sessionId: 'sess-1' });
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await capturedHandler({});
+    const logged = stderrSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('Tool held_tool HELD, not run: approval apr_7');
+    expect(logged).not.toContain('Tool held_tool OK');
+    // MCP isError means the call errored; a held call is waiting on a person, and the pending body (kept as the text) says so
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain('apr_7');
+    stderrSpy.mockRestore();
+  });
+
   it('passes orgId, userId, and authToken from context to client', async () => {
     const { registerTools } = await import('../lib/tool-adapter.js');
 
