@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-11-05 by /codebase-mirror -->
+<!-- Last verified: 2026-11-06 by /codebase-mirror -->
 
 # quoxmcp — Codebase Map
 
@@ -10,13 +10,13 @@
 |--------|-------|
 | Source lines | 1105 (server.js: 210, lib/: 895) |
 | Test lines | 2408 |
-| Test cases | 194 across 10 files (all green, `npx vitest run` 2026-11-05, 13.7s) |
+| Test cases | 194 across 10 files (all green, `npx vitest run` 2026-11-06, 14.0s) |
 | Lib modules | 7 (6 wired into server.js, 1 standalone: `mcp-auth.js`) |
-| Runtime deps | 2 (`@modelcontextprotocol/sdk`, `zod`) |
-| Dev deps | 1 (`vitest`) |
+| Runtime deps | 2 (`@modelcontextprotocol/sdk` 1.26.0 installed, `zod` 4.3.6) |
+| Dev deps | 1 (`vitest` 4.0.18) |
 | Tools / resources / prompts | dynamic (fetched from collector at startup; agent- and org-scoped, no single flat count; 320 distinct tool names across 44 agent roles per the 2026-09-16 parity audit) / 5 / 4 |
 
-No source, test, or config file has changed since the previous map (2026-10-23); last code commit touching `lib/`, `server.js`, `test/` or the configs is dated 2026-10-22.
+No source, test, or config file has changed since the previous map (2026-11-05). Last code commit touching `lib/`, `server.js`, `test/` or the configs is `f6b5b38` (2026-10-16, resource-server token validator).
 
 ## Package
 
@@ -54,13 +54,13 @@ Single entry point, spawned as a STDIO subprocess by Claude CLI (`--mcp-config`)
 
 **`main()` (`server.js:105-186`):**
 1. `new McpServer({ name: 'quoxmcp', version: '1.3.0' })` + `CollectorClient` with service-key auth.
-2. `client.listTools(agentId, orgId)`. On failure: log, continue with 0 tools, set `initialLoadFailed` (never exit pre-connect). Logs connector-tool count separately.
+2. `client.listTools(agentId, orgId)`. On failure: log, continue with 0 tools, set `initialLoadFailed` (never exit pre-connect). Logs connector-tool count (`provider` starting `connector:`) separately.
 3. `registerTools(...)`, then `listResources()` → `registerResources(...)`, `listPrompts()` → `registerPrompts(...)` (each independently tolerant of collector errors).
 4. `server.setToolRequestHandlers()` so the tools capability is declared even with zero tools (allows post-connect registration).
 5. `server.connect(new StdioServerTransport())`.
 6. If the initial load failed: `startToolRediscovery(...)` retries on a bounded backoff and registers tools when found (SDK emits `tools/list_changed`).
 
-**Shutdown (`server.js:189-205`):** exits on SIGTERM, SIGINT, stdin `end`/`close` (so a parent `claude -p` never hangs on a lingering keep-alive socket), and EPIPE on stdout. `unhandledRejection` / `uncaughtException` exit 1.
+**Shutdown (`server.js:189-205`):** exits on SIGTERM, SIGINT, stdin `end`/`close` (so a parent `claude -p` never hangs on a lingering keep-alive socket), and EPIPE on stdout. `unhandledRejection` / `uncaughtException` exit 1. All logging goes to stderr; stdout is reserved for the MCP protocol.
 
 ## File Tree
 
@@ -117,7 +117,7 @@ All requests carry `X-Service-Key`, honour a 30s timeout (`AbortSignal.timeout`)
 `class CollectorClient(baseUrl, { timeout=30000, retries=2, serviceKey })`. Methods: `listTools(agentId, orgId)`, `listResources()`, `listPrompts()`, `executeTool(name, input, agentId, sessionId, orgId, userId, authToken)`. Internals: `_get` (idempotent), `_post` (non-idempotent), `_request(path, opts, { idempotent })`. Response shape validated (`tools`/`resources`/`prompts` must be arrays). `org_id`, `user_id`, `auth_token` are only added to the execute body when set.
 
 ### tool-adapter.js (192 lines)
-Exports `registerTools`, `jsonSchemaToZodShape(properties, required)`, `jsonSchemaToZodItem(items)`. `jsonSchemaToZodType` preserves JSON-Schema constraints: integer-ness, `minimum`/`maximum`, `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`, `pattern` (invalid regex ignored), `minItems`/`maxItems`, enum (string enums → `z.enum`, mixed → literal union), nullable, defaults; recursive for arrays and objects. Tools with a missing name/description or an unsafe name are skipped. Handler rejects inputs over 1MB before calling the collector and returns errors as structured text content with `isError: true`, never throwing into the SDK.
+Exports `registerTools`, `jsonSchemaToZodShape(properties, required)`, `jsonSchemaToZodItem(items)`. `jsonSchemaToZodType` preserves JSON-Schema constraints: integer-ness, `minimum`/`maximum`, `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`, `pattern` (invalid regex ignored), `minItems`/`maxItems`, enum (string enums → `z.enum`, mixed → literal union), nullable, defaults; recursive for arrays and objects. Tools with a missing name/description or an unsafe name are skipped (`tool-adapter.js:128`). Handler rejects inputs over 1MB before calling the collector (`:144`) and returns errors as structured text content with `isError: true`, never throwing into the SDK.
 
 ### tool-discovery.js (53 lines)
 Exports `startToolRediscovery({ listTools, onTools, delaysMs, log })` and `DEFAULT_DELAYS_MS = [2000, 5000, 15000, 30000, 60000]`. Returns `{ finished, cancel() }`. Timers are `unref`'d so they never keep the process alive. Gives up after the last delay and logs that it is serving without tools.
@@ -129,7 +129,7 @@ Exports `registerResources`, `_resourceCache` (Map), `RESOURCE_CACHE_TTL` (30s),
 Exports `registerPrompts`, `buildArgsShape(args)`, `interpolateArgs(template, args)`. Template syntax: `{{var}}`, `{{var|default}}`, `{{#var}}...{{/var}}` (if set), `{{^var}}...{{/var}}` (if unset). User args pass through `escapeTemplateChars` to block template injection.
 
 ### validate.js (131 lines)
-Constants: `SAFE_ID` (`/^[a-zA-Z0-9_-]{1,64}$/`), `SAFE_TOOL_NAME` (`/^[a-zA-Z0-9_.-]{1,128}$/`), `MAX_INPUT_SIZE` (1MB), `ALLOWED_URI_SCHEMES`. Functions: `isValidId`, `isValidToolName`, `validateUrl` (returns `{ valid, parsed, warning }`), `isValidResourceUri`, `sanitizeError` (strips collector URLs, `/home` `/opt` `/etc` `/var` paths, private IPs), `escapeTemplateChars`, `inputTooLarge`.
+Constants: `SAFE_ID` (`/^[a-zA-Z0-9_-]{1,64}$/`), `SAFE_TOOL_NAME` (`/^[a-zA-Z0-9_.-]{1,128}$/`), `MAX_INPUT_SIZE` (1MB), `ALLOWED_URI_SCHEMES` (`quox:`, `https:`, `http:`). Functions: `isValidId`, `isValidToolName`, `validateUrl` (returns `{ valid, parsed, warning }`), `isValidResourceUri`, `sanitizeError` (strips collector URLs, `/home` `/opt` `/etc` `/var` paths, private IPs), `escapeTemplateChars`, `inputTooLarge`.
 
 ### mcp-auth.js (141 lines) — standalone
 Exports `validatePrincipal(token, { expectedAudience, issuer?, requiredScopes?, verify?, secret? })`. OAuth resource-server token validator for a future remote (non-STDIO) MCP transport. Fail-closed: always returns `{ ok:false, status, error_code, error }` rather than throwing (`401 token_missing` / `invalid_token` / `audience_mismatch`, `403 insufficient_scope`, `500 server_misconfigured`). Default verifier is HS256 using `QUOX_JWT_SECRET` / `JWT_SECRET`; a custom `verify` can be injected but `exp`/`nbf`/`aud`/`iss` are re-enforced in the common path. Principal (`org_id`, `user_id`, `agent_id`, `scopes`) comes only from verified claims. Explicit no-token-passthrough contract: the inbound token must never be forwarded to the collector. **Not imported by `server.js`**; only `test/mcpAuth.test.js` exercises it.
@@ -197,8 +197,8 @@ Tests are ESM (`import` from vitest) against CommonJS lib modules, with `fetch` 
 | manifest.json `user_id` matches server behaviour | ✓ pass | Both optional since #9 |
 | Deps minimal (2 runtime, 1 dev) | ✓ pass | |
 | Tool count honest in docs | ✓ pass | manifest.json and README state the count is agent- and org-scoped |
-| Full suite executed and green | ✓ pass | `npx vitest run`: 10 files, 194/194 passed, 2026-11-05 |
-| README test count current | ⚠ warn | `README.md:320` Development section still says "168 tests across 9 files"; suite is 194 across 10 (unchanged since the 2026-10-23 map) |
+| Full suite executed and green | ✓ pass | `npx vitest run`: 10 files, 194/194 passed, 2026-11-06 |
+| README test count current | ⚠ warn | `README.md:320` Development section still says "168 tests across 9 files"; suite is 194 across 10 (stale since the 2026-10-23 map) |
 | Checkout runnable as-is | ✓ pass | `node_modules/` installed (123 packages); `npm test` and `deploy/bundle.sh` run without a prior `npm install` |
 
 ## Related
