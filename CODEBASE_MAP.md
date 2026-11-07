@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-11-06 by /codebase-mirror -->
+<!-- Last verified: 2026-11-07 by /codebase-mirror -->
 
 # quoxmcp — Codebase Map
 
@@ -10,13 +10,13 @@
 |--------|-------|
 | Source lines | 1105 (server.js: 210, lib/: 895) |
 | Test lines | 2408 |
-| Test cases | 194 across 10 files (all green, `npx vitest run` 2026-11-06, 14.0s) |
+| Test cases | 194 across 10 files (all green, `npx vitest run` 2026-11-07, 13.4s) |
 | Lib modules | 7 (6 wired into server.js, 1 standalone: `mcp-auth.js`) |
 | Runtime deps | 2 (`@modelcontextprotocol/sdk` 1.26.0 installed, `zod` 4.3.6) |
 | Dev deps | 1 (`vitest` 4.0.18) |
 | Tools / resources / prompts | dynamic (fetched from collector at startup; agent- and org-scoped, no single flat count; 320 distinct tool names across 44 agent roles per the 2026-09-16 parity audit) / 5 / 4 |
 
-No source, test, or config file has changed since the previous map (2026-11-05). Last code commit touching `lib/`, `server.js`, `test/` or the configs is `f6b5b38` (2026-10-16, resource-server token validator).
+No source, test, or config file has changed since the previous map (2026-11-06). Last code commit touching `lib/`, `server.js`, `test/` or the configs is `f6b5b38` (2026-10-16, resource-server token validator).
 
 ## Package
 
@@ -197,7 +197,7 @@ Tests are ESM (`import` from vitest) against CommonJS lib modules, with `fetch` 
 | manifest.json `user_id` matches server behaviour | ✓ pass | Both optional since #9 |
 | Deps minimal (2 runtime, 1 dev) | ✓ pass | |
 | Tool count honest in docs | ✓ pass | manifest.json and README state the count is agent- and org-scoped |
-| Full suite executed and green | ✓ pass | `npx vitest run`: 10 files, 194/194 passed, 2026-11-06 |
+| Full suite executed and green | ✓ pass | `npx vitest run`: 10 files, 194/194 passed, 2026-11-07 |
 | README test count current | ⚠ warn | `README.md:320` Development section still says "168 tests across 9 files"; suite is 194 across 10 (stale since the 2026-10-23 map) |
 | Checkout runnable as-is | ✓ pass | `node_modules/` installed (123 packages); `npm test` and `deploy/bundle.sh` run without a prior `npm install` |
 
