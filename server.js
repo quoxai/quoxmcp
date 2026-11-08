@@ -22,7 +22,7 @@ const { registerTools } = require('./lib/tool-adapter');
 const { startToolRediscovery } = require('./lib/tool-discovery');
 const { registerResources } = require('./lib/resource-adapter');
 const { registerPrompts } = require('./lib/prompt-adapter');
-const { isValidId, validateUrl, sanitizeError } = require('./lib/validate');
+const { isValidId, validateUrl, sanitizeError, keyKind } = require('./lib/validate');
 
 const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const rawSessionId = process.env.QUOX_SESSION_ID || '';
@@ -76,6 +76,12 @@ if (!isValidId(agentId)) {
 if (rawSessionId && !isValidId(rawSessionId)) {
   sessionId = rawSessionId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
   console.error(`[QuoxMCP] Non-conforming QUOX_SESSION_ID sanitized to "${sessionId}".`);
+}
+
+// VULCAN MCP-01: the documented install uses a personal qmcp_ token. An instance-wide service key is for the
+// operator's own internal deployments only; say so loudly instead of running silently with it.
+if (keyKind(serviceKey) === 'service') {
+  console.error('[QuoxMCP] WARNING: QUOX_SERVICE_KEY is not a personal token (qmcp_...). An instance-wide service key gives this client the whole instance\'s authority. Mint a personal MCP token in the Quox dashboard (Settings, MCP credentials) and use that instead.');
 }
 
 const urlCheck = validateUrl(collectorUrl);
