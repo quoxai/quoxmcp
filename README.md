@@ -35,12 +35,12 @@ Claude CLI               │                                │
 
 ## Install in Claude Desktop (recommended)
 
-Download `quoxmcp.mcpb` from [the latest release](https://github.com/quoxai/quoxmcp/releases) and double-click it. Claude Desktop opens an install dialog and asks for the values below. Collector URL, Service Key and Org ID are required; User ID is optional:
+Download `quoxmcp.mcpb` from [the latest release](https://github.com/quoxai/quoxmcp/releases) and double-click it. Claude Desktop opens an install dialog and asks for the values below. Collector URL, Personal MCP token and Org ID are required; User ID is optional:
 
 | Field | What to enter |
 |-------|--------------|
-| **Collector URL** | Base URL of your QuoxCORE collector — e.g. `http://192.0.2.126:9848` |
-| **Service Key** | `INTERNAL_SERVICE_KEY` from your QuoxCORE `.env` (or dashboard settings) |
+| **Collector URL** | Base URL of your QuoxCORE collector, e.g. `https://quox.example.com` (plain `http://` only for localhost, a private IP or an internal service name) |
+| **Personal MCP token** | A personal token starting `qmcp_`. Create one in the Quox dashboard under Settings, MCP credentials. Never paste the instance's `INTERNAL_SERVICE_KEY`: that key carries the whole instance's authority. |
 | **Org ID** | Your QuoxCORE org ID (dashboard profile). Required: the server refuses to start without it. |
 | **User ID** | Your QuoxCORE user ID, for audit attribution. Optional: if empty, QuoxMCP logs a notice and runs as an org-scoped service context. |
 
@@ -112,7 +112,7 @@ Expected output:
 | `QUOX_AGENT_ID` | `quox` | Agent identity for RBAC. Determines which tools are available. |
 | `QUOX_SESSION_ID` | `""` | Session identifier for context threading. |
 | `QUOX_COLLECTOR_URL` | `http://127.0.0.1:9848` | QuoxCORE collector API base URL. |
-| `QUOX_SERVICE_KEY` | `""` | Service authentication key. Sent as `X-Service-Key` header on every collector request. Falls back to `INTERNAL_SERVICE_KEY` if not set. |
+| `QUOX_SERVICE_KEY` | `""` | Your personal MCP token (`qmcp_...`), or for the operator's own internal deployments a service key. Sent as `X-Service-Key` header on every collector request. Falls back to `INTERNAL_SERVICE_KEY` if not set. |
 | `INTERNAL_SERVICE_KEY` | `""` | Fallback service key (used if `QUOX_SERVICE_KEY` is empty). |
 | `QUOX_ORG_ID` | `""` | **Required.** Org the session is scoped to; startup exits without it. |
 | `QUOX_USER_ID` | `""` | Optional. User for audit attribution. When unset, a notice is logged and the server runs as an org-scoped service context (appservice/agent invokes). |
