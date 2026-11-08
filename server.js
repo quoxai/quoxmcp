@@ -22,7 +22,7 @@ const { registerTools } = require('./lib/tool-adapter');
 const { startToolRediscovery } = require('./lib/tool-discovery');
 const { registerResources } = require('./lib/resource-adapter');
 const { registerPrompts } = require('./lib/prompt-adapter');
-const { isValidId, validateUrl, sanitizeError } = require('./lib/validate');
+const { isValidId, validateUrl, sanitizeError, insecureTransportRefusal } = require('./lib/validate');
 
 const agentId = process.env.QUOX_AGENT_ID || 'quox';
 const rawSessionId = process.env.QUOX_SESSION_ID || '';
@@ -81,6 +81,12 @@ if (rawSessionId && !isValidId(rawSessionId)) {
 const urlCheck = validateUrl(collectorUrl);
 if (!urlCheck.valid) {
   console.error(`[QuoxMCP] FATAL: Invalid collector URL. Must be a valid http/https URL.`);
+  process.exit(1);
+}
+// VULCAN FND_01M6V4CQYN809ZZ58EZE3KQA9Z (MCP-06): plain http to a non-internal host is refused, not warned.
+const transportRefusal = insecureTransportRefusal(urlCheck);
+if (transportRefusal) {
+  console.error(`[QuoxMCP] FATAL: ${transportRefusal}`);
   process.exit(1);
 }
 if (urlCheck.warning) {
