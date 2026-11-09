@@ -249,8 +249,9 @@ Tool descriptions, input schemas, resource metadata and content, and prompt text
 
 ## Resilience Features
 
-- **Exponential backoff** — Failed collector calls retry up to 2 times with exponential delays (max 8s between retries)
+- **Exponential backoff** — Failed collector reads (GET) retry up to 2 times with exponential delays (max 8s between retries). Tool execution (POST) is never retried, since a retry after a lost response would run the action twice
 - **Request timeout** — 30-second timeout on every collector HTTP request
+- **Honest timeouts** — If a tool execution times out, the collector may already have acted, so QuoxMCP reports the outcome as unknown (never "failed") and points to `quox approvals result` or the dashboard. Every execution carries a fresh `X-Idempotency-Key` header (a UUID) so the collector can dedupe repeats; the collector does not act on it yet
 - **Resource caching** — Live resources cache responses for 30 seconds to avoid redundant fetches
 - **Graceful shutdown** — SIGTERM and SIGINT handlers ensure clean MCP server disconnection
 - **Per-tool logging** — Every tool call, resource read, and prompt invocation is logged with timing and agent context
