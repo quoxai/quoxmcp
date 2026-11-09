@@ -78,7 +78,7 @@ quoxmcp/
 ├── test/                        # 10 vitest files (see Test Coverage)
 ├── deploy/
 │   ├── bundle.sh                # Tarball packaging for fleet hosts
-│   └── quoxmcp-bundle.tar.gz    # Pre-built deployment tarball
+│   └── quoxmcp-bundle.tar.gz    # Build output of bundle.sh (gitignored, not tracked)
 ├── docs/assets/readme-hero.png  # README artwork
 ├── manifest.json                # MCPB manifest (Claude Desktop one-click install)
 ├── package.json / package-lock.json

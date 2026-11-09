@@ -262,8 +262,9 @@ QuoxMCP can be deployed to any fleet host alongside QuoxAgent. The install scrip
 ### Build & Deploy
 
 ```bash
-# 1. Build the bundle on the control workstation
-cd /home/control/quoxmcp/deploy && ./bundle.sh
+# 1. Build the bundle on the control workstation (production deps only)
+cd /home/control/quoxmcp && npm ci --omit=dev
+cd deploy && ./bundle.sh
 
 # 2. Deploy to fleet hosts (reads service key from dashboard .env)
 cd /home/control/quoxagent/deploy
@@ -273,6 +274,8 @@ cd /home/control/quoxagent/deploy
 # 3. Verify
 ./deploy-to-host.sh all --check-mcp
 ```
+
+`deploy/quoxmcp-bundle.tar.gz` is a build output of `deploy/bundle.sh` and is gitignored, never committed: a tracked tarball goes stale against `lib/` silently. The collector serves it at `/download/quoxmcp-bundle.tar.gz` from the `quoxmcp/deploy` directory it mounts, so rebuild it after every pull that changes `server.js`, `lib/` or dependencies (and once after the pull that untracked it, since that pull deletes the old copy). Run `npm ci` again afterwards to get the dev dependencies back for tests.
 
 ### Remote File Layout
 
@@ -310,7 +313,7 @@ quoxmcp/
 │   ├── security.test.js         # Security hardening tests (40)
 │   └── discord-tools.test.js    # Discord Pro tool exposure regression tests (5)
 ├── deploy/
-│   └── bundle.sh                # Tarball packaging for remote fleet deployment
+│   └── bundle.sh                # Tarball packaging for remote fleet deployment (output gitignored)
 ├── manifest.json                # MCPB manifest for Claude Desktop installs
 ├── dist/
 │   └── quoxmcp.mcpb             # Built .mcpb (gitignored — produced by mcpb pack)

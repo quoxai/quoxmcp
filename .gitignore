@@ -5,3 +5,7 @@ coverage/
 dist/
 build/
 .DS_Store
+
+# Deployment tarball: a build output of deploy/bundle.sh, never committed
+deploy/quoxmcp-bundle.tar.gz
+deploy/.bundle-staging/

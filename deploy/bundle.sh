@@ -3,7 +3,8 @@
 # Creates quoxmcp-bundle.tar.gz with server.js, lib/, node_modules/, package.json.
 # No `npm install` needed on remote hosts.
 #
-# Usage: cd /home/control/quoxmcp/deploy && ./bundle.sh
+# Usage: cd /home/control/quoxmcp && npm ci --omit=dev && cd deploy && ./bundle.sh
+# The output tarball is gitignored (a build output, never committed).
 
 set -e
 
