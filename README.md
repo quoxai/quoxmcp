@@ -99,8 +99,8 @@ Expected output:
 ```
 [QuoxMCP] Starting — agent=quox, collector=http://127.0.0.1:9848
 [QuoxMCP] Fetched N tools for agent quox
-[QuoxMCP] Registered N tools, 5 resources, 4 prompts for agent quox
-[QuoxMCP] Connected — serving N tools, 5 resources, 4 prompts via STDIO
+[QuoxMCP] Registered N tools, 8 resources, 7 prompts for agent quox
+[QuoxMCP] Connected — serving N tools, 8 resources, 7 prompts via STDIO
 ```
 
 `N` varies by agent and org entitlements, it is never a fixed number, see Available Tools below.
@@ -243,10 +243,15 @@ QuoxMCP authenticates every request to the collector using a service key sent as
 
 No anonymous tool execution is possible when the collector enforces service key validation.
 
+### Collector-provided text
+
+Tool descriptions, input schemas, resource metadata and content, and prompt text come from the collector and reach your MCP client's model context. QuoxMCP strips control characters (except newline and tab) and invisible or bidirectional characters (zero-width marks, bidi embeddings, overrides and isolates, the BOM, Unicode tag characters) from all of them. Descriptions and titles are capped at 2000 characters and each prompt message at 8000, with a visible ` [truncated]` marker. A tool whose input schema is over 64 KiB, nested deeper than 16 levels, or has a property name carrying hidden characters is not registered. QuoxMCP never adds its own wording to a description. The constants live in `lib/validate.js`.
+
 ## Resilience Features
 
-- **Exponential backoff** — Failed collector calls retry up to 2 times with exponential delays (max 8s between retries)
+- **Exponential backoff** — Failed collector reads (GET) retry up to 2 times with exponential delays (max 8s between retries). Tool execution (POST) is never retried, since a retry after a lost response would run the action twice
 - **Request timeout** — 30-second timeout on every collector HTTP request
+- **Honest timeouts** — If a tool execution times out, the collector may already have acted, so QuoxMCP reports the outcome as unknown (never "failed") and points to `quox approvals result` or the dashboard. Every execution carries a fresh `X-Idempotency-Key` header (a UUID) so the collector can dedupe repeats; the collector does not act on it yet
 - **Resource caching** — Live resources cache responses for 30 seconds to avoid redundant fetches
 - **Graceful shutdown** — SIGTERM and SIGINT handlers ensure clean MCP server disconnection
 - **Per-tool logging** — Every tool call, resource read, and prompt invocation is logged with timing and agent context
@@ -258,8 +263,9 @@ QuoxMCP can be deployed to any fleet host alongside QuoxAgent. The install scrip
 ### Build & Deploy
 
 ```bash
-# 1. Build the bundle on the control workstation
-cd /home/control/quoxmcp/deploy && ./bundle.sh
+# 1. Build the bundle on the control workstation (production deps only)
+cd /home/control/quoxmcp && npm ci --omit=dev
+cd deploy && ./bundle.sh
 
 # 2. Deploy to fleet hosts (reads service key from dashboard .env)
 cd /home/control/quoxagent/deploy
@@ -269,6 +275,8 @@ cd /home/control/quoxagent/deploy
 # 3. Verify
 ./deploy-to-host.sh all --check-mcp
 ```
+
+`deploy/quoxmcp-bundle.tar.gz` is a build output of `deploy/bundle.sh` and is gitignored, never committed: a tracked tarball goes stale against `lib/` silently. The collector serves it at `/download/quoxmcp-bundle.tar.gz` from the `quoxmcp/deploy` directory it mounts, so rebuild it after every pull that changes `server.js`, `lib/` or dependencies (and once after the pull that untracked it, since that pull deletes the old copy). Run `npm ci` again afterwards to get the dev dependencies back for tests.
 
 ### Remote File Layout
 
@@ -306,7 +314,7 @@ quoxmcp/
 │   ├── security.test.js         # Security hardening tests (40)
 │   └── discord-tools.test.js    # Discord Pro tool exposure regression tests (5)
 ├── deploy/
-│   └── bundle.sh                # Tarball packaging for remote fleet deployment
+│   └── bundle.sh                # Tarball packaging for remote fleet deployment (output gitignored)
 ├── manifest.json                # MCPB manifest for Claude Desktop installs
 ├── dist/
 │   └── quoxmcp.mcpb             # Built .mcpb (gitignored — produced by mcpb pack)

@@ -1,0 +1,29 @@
+# VULCAN FND_01M6V4CS54E2X4Q7TRVZEH24P4 (MCP-11/12): run the suite on every push and pull request.
+# `npm ci` fails if package.json and package-lock.json disagree, so lockfile drift is caught here too.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run
