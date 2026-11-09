@@ -99,8 +99,8 @@ Expected output:
 ```
 [QuoxMCP] Starting — agent=quox, collector=http://127.0.0.1:9848
 [QuoxMCP] Fetched N tools for agent quox
-[QuoxMCP] Registered N tools, 5 resources, 4 prompts for agent quox
-[QuoxMCP] Connected — serving N tools, 5 resources, 4 prompts via STDIO
+[QuoxMCP] Registered N tools, 8 resources, 7 prompts for agent quox
+[QuoxMCP] Connected — serving N tools, 8 resources, 7 prompts via STDIO
 ```
 
 `N` varies by agent and org entitlements, it is never a fixed number, see Available Tools below.
