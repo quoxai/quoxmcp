@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "quoxmcp",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "QuoxMCP \u2014 bridges Claude Desktop to your QuoxCORE collector. Surfaces the infrastructure tools, resources and operational prompts your collector allows (scoped per agent, org and role) via MCP.",
   "author": {
     "name": "Quox"
