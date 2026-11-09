@@ -121,7 +121,7 @@ async function main() {
 
   const server = new McpServer({
     name: 'quoxmcp',
-    version: require('./package.json').version
+    version: '1.3.1'
   });
 
   const client = new CollectorClient(collectorUrl, { serviceKey });

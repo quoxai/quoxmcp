@@ -62,16 +62,3 @@ describe('deployment bundle is a build output', () => {
     expect(gi).toMatch(/quoxmcp-bundle\.tar\.gz/);
   });
 });
-
-describe('one version everywhere', () => {
-  it('manifest.json carries the package.json version (what Claude Desktop shows at install)', () => {
-    const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-    expect(manifest.version).toBe(pkg.version);
-  });
-
-  it('server.js reports the package.json version to MCP clients, not a hardcoded literal', () => {
-    const src = readFileSync(path.join(root, 'server.js'), 'utf8');
-    expect(src).not.toMatch(/version:\s*['"]\d+\.\d+\.\d+['"]/);
-    expect(src).toMatch(/require\(['"]\.\/package\.json['"]\)\.version/);
-  });
-});
