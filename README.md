@@ -243,6 +243,10 @@ QuoxMCP authenticates every request to the collector using a service key sent as
 
 No anonymous tool execution is possible when the collector enforces service key validation.
 
+### Collector-provided text
+
+Tool descriptions, input schemas, resource metadata and content, and prompt text come from the collector and reach your MCP client's model context. QuoxMCP strips control characters (except newline and tab) and invisible or bidirectional characters (zero-width marks, bidi embeddings, overrides and isolates, the BOM, Unicode tag characters) from all of them. Descriptions and titles are capped at 2000 characters and each prompt message at 8000, with a visible ` [truncated]` marker. A tool whose input schema is over 64 KiB, nested deeper than 16 levels, or has a property name carrying hidden characters is not registered. QuoxMCP never adds its own wording to a description. The constants live in `lib/validate.js`.
+
 ## Resilience Features
 
 - **Exponential backoff** — Failed collector calls retry up to 2 times with exponential delays (max 8s between retries)
